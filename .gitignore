@@ -1,0 +1,7 @@
+# Executable
+cleo
+
+# Object files
+src/*.o
+
+compile_flags.txt
