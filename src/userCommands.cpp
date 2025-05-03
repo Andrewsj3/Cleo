@@ -1,15 +1,23 @@
-#include "command.hpp"
 #include "userCommands.hpp"
+#include "command.hpp"
 #include "music.hpp"
 #include <SFML/Audio/Music.hpp>
 #include <SFML/Audio/SoundSource.hpp>
+#include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
+#include <iterator>
 #include <print>
+#include <set>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 constexpr int VOLUME_TOO_LOW{-1};
 constexpr int VOLUME_TOO_HIGH{-2};
+
+enum class Match { NoMatch, ExactMatch, MultipleMatch };
 
 bool checkArgCount(const std::vector<std::string>& args, size_t expectedCount,
                    std::string_view errMsg) {
@@ -19,16 +27,74 @@ bool checkArgCount(const std::vector<std::string>& args, size_t expectedCount,
     return false;
 }
 
+Match filterSongs(const std::vector<std::string>& songs, std::string_view substr,
+                  std::string& exactMatch) {
+    std::vector<std::string> matches{};
+    std::copy_if(songs.begin(), songs.end(), std::back_inserter(matches),
+                 [substr](const std::string_view str) { return str.starts_with(substr); });
+    if (matches.size() == 0) {
+        return Match::NoMatch;
+    } else if (matches.size() == 1) {
+        exactMatch = matches.at(0);
+        return Match::ExactMatch;
+    } else {
+        return Match::MultipleMatch;
+    }
+}
+
 void Cleo::play(Command& cmd) {
     if (!checkArgCount(cmd.arguments(), 1, "Expected exactly one song to play"))
         return;
-    std::string_view song{cmd.arguments().at(0)};
+    std::string song{cmd.arguments().at(0)};
+    std::string match{};
     std::filesystem::path songPath{Music::musicDir / song};
-    if (!Music::music.openFromFile(songPath)) {
-        std::println("Cound not play file '{}'", song);
+    // check for exact filename match including extension
+    if (Music::load.openFromFile(songPath)) {
+        (void)Music::music.openFromFile(songPath);
+        Music::music.play();
+        return;
+    }
+    // check for exact name match not including extension
+    switch (filterSongs(Music::songs, song, match)) {
+    case Match::NoMatch:
+        std::println("Song not found");
+        return;
+    case Match::ExactMatch:
+        break;
+    case Match::MultipleMatch:
+        std::println("Multiple matches found, try refining your search");
+        return;
+    }
+    bool foundSong{false};
+    for (const auto& ext : Music::supportedExtensions) {
+        if (Music::load.openFromFile(Music::musicDir / (match + ext))) {
+            (void)Music::music.openFromFile(Music::musicDir / (match + ext));
+            foundSong = true;
+            break;
+        }
+    }
+    if (!foundSong) {
+        std::println("A match was found, but the file had an unsupported extension");
         return;
     }
     Music::music.play();
+}
+
+void Cleo::list(Command&) {
+    std::stringstream sb{};
+    std::set<std::string> directorySorted{};
+    for (const auto& dirEntry : std::filesystem::directory_iterator(Music::musicDir)) {
+        std::string ext{dirEntry.path().extension()};
+        if (Music::supportedExtensions.contains(ext)) {
+            directorySorted.insert(dirEntry.path().stem().string());
+        }
+    }
+    for (const auto& dirEntry : directorySorted) {
+        sb << dirEntry << ", ";
+    }
+    std::string dirList{sb.str()};
+    dirList.erase(dirList.size() - 2);
+    std::println("{}", dirList);
 }
 
 void Cleo::stop(Command&) { Music::music.stop(); }

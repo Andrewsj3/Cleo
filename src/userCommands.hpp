@@ -3,6 +3,7 @@
 #include "command.hpp"
 namespace Cleo {
     void play(Command&);
+    void list(Command&);
     void stop(Command&);
     void volume(Command&);
     void pause(Command&);

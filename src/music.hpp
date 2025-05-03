@@ -2,8 +2,15 @@
 
 #include "SFML/Audio/Music.hpp"
 #include <filesystem>
+#include <string>
+#include <unordered_set>
 
 namespace Music {
     extern sf::Music music;
-    extern std::filesystem::path musicDir;
+    extern sf::Music load;
+    extern const std::filesystem::path musicDir;
+    extern const std::unordered_set<std::string> supportedExtensions;
+    extern std::vector<std::string> songs;
 } // namespace Music
+
+void updateSongs();
