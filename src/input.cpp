@@ -1,7 +1,9 @@
+#include "autocomplete.hpp"
 #include "command.hpp"
 #include "threads.hpp"
-#include <map>
+#include <flat_map>
 #include <print>
+#include <string>
 #if defined(__unix)
 #include "readline/history.h"
 #include "readline/readline.h"
@@ -9,7 +11,7 @@
 #error "Unix based only, sorry"
 #endif
 
-using commandMap = std::map<std::string, std::function<void(Command&)>>;
+using commandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 
 std::vector<Command> parseString(std::string_view input) {
     bool isQuoted{false};
@@ -49,10 +51,21 @@ std::vector<Command> parseString(std::string_view input) {
 bool checkInput() { return !Threads::userInput.empty(); }
 
 void parseCmd(Command& cmd, const commandMap& programCommands) {
+    std::string match{};
     if (programCommands.contains(cmd.function())) {
         programCommands.at(cmd.function())(cmd);
     } else {
-        std::println("Command '{}' not found", cmd.function());
+        switch (autocomplete(programCommands.keys(), cmd.function(), match)) {
+        case Match::NoMatch:
+            std::println("Command '{}' not found", cmd.function());
+            break;
+        case Match::ExactMatch:
+            programCommands.at(match)(cmd);
+            return;
+        case Match::MultipleMatch:
+            std::println("Multiple possible commands found, try refining your search");
+            break;
+        }
     }
 }
 
@@ -72,6 +85,8 @@ bool existsInHistory(HIST_ENTRY** history, const char* str) {
 void inputThread() {
     std::string input{};
     while (true) {
+        if (!Threads::running)
+            return;
         if (!Threads::readyForInput)
             continue;
         const char* input = readline("> ");
@@ -80,10 +95,6 @@ void inputThread() {
             return;
         }
         Threads::userInput = input;
-        if (Threads::userInput == "exit") {
-            Threads::running = false;
-            return;
-        }
         if (Threads::userInput.length() > 0) {
             if (!existsInHistory(history_list(), Threads::userInput.c_str()))
                 add_history(Threads::userInput.c_str());

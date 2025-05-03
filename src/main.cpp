@@ -4,15 +4,14 @@
 #include "userCommands.hpp"
 #include <SFML/Audio/Music.hpp>
 #include <SFML/System.hpp>
+#include <flat_map>
 #include <iostream>
-#include <map>
 #include <print>
-#include <string>
 #include <thread>
-#define CLEO_VERSION "0.2.0"
+#define CLEO_VERSION "0.3.0"
 
 int main() {
-    using commandMap = std::map<std::string, std::function<void(Command&)>>;
+    using commandMap = std::flat_map<std::string, std::function<void(Command&)>>;
     sf::err().rdbuf(nullptr);
     commandMap programCommands{
         {"exit", Cleo::exit}, {"list", Cleo::list}, {"pause", Cleo::pause},

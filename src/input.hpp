@@ -1,9 +1,9 @@
 #pragma once
 
 #include "command.hpp"
+#include <flat_map>
 #include <functional>
-#include <map>
 #include <string>
 
 void inputThread();
-void backgroundThread(const std::map<std::string, std::function<void(Command&)>>&);
+void backgroundThread(const std::flat_map<std::string, std::function<void(Command&)>>&);

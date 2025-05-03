@@ -1,13 +1,13 @@
 #include "userCommands.hpp"
+#include "autocomplete.hpp"
 #include "command.hpp"
 #include "music.hpp"
+#include "threads.hpp"
 #include <SFML/Audio/Music.hpp>
 #include <SFML/Audio/SoundSource.hpp>
-#include <algorithm>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
-#include <iterator>
 #include <print>
 #include <set>
 #include <sstream>
@@ -17,29 +17,12 @@
 constexpr int VOLUME_TOO_LOW{-1};
 constexpr int VOLUME_TOO_HIGH{-2};
 
-enum class Match { NoMatch, ExactMatch, MultipleMatch };
-
 bool checkArgCount(const std::vector<std::string>& args, size_t expectedCount,
                    std::string_view errMsg) {
     if (args.size() == expectedCount)
         return true;
     std::println("{}", errMsg);
     return false;
-}
-
-Match filterSongs(const std::vector<std::string>& songs, std::string_view substr,
-                  std::string& exactMatch) {
-    std::vector<std::string> matches{};
-    std::copy_if(songs.begin(), songs.end(), std::back_inserter(matches),
-                 [substr](const std::string_view str) { return str.starts_with(substr); });
-    if (matches.size() == 0) {
-        return Match::NoMatch;
-    } else if (matches.size() == 1) {
-        exactMatch = matches.at(0);
-        return Match::ExactMatch;
-    } else {
-        return Match::MultipleMatch;
-    }
 }
 
 void Cleo::play(Command& cmd) {
@@ -55,7 +38,7 @@ void Cleo::play(Command& cmd) {
         return;
     }
     // check for exact name match not including extension
-    switch (filterSongs(Music::songs, song, match)) {
+    switch (autocomplete(Music::songs, song, match)) {
     case Match::NoMatch:
         std::println("Song not found");
         return;
@@ -99,7 +82,9 @@ void Cleo::list(Command&) {
 
 void Cleo::stop(Command&) { Music::music.stop(); }
 
-void Cleo::exit(Command&) {}
+void Cleo::exit(Command&) {
+    Threads::running = false;
+}
 
 void getVolume() {
     float curVolume{Music::music.getVolume()};
