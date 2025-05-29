@@ -14,7 +14,7 @@ Match autocomplete(const std::vector<std::string>& choices, std::string_view sub
         exactMatch = matches.at(0);
         return Match::ExactMatch;
     } else {
-		multipleMatches = matches;
+        multipleMatches = matches;
         return Match::MultipleMatch;
     }
 }

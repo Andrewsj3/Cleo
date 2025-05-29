@@ -24,6 +24,6 @@ void Command::shift() {
             "Cannot shift command because there are no remaining arguments");
     }
     mFunction = mArguments.front();
-	lower(mFunction);
+    lower(mFunction);
     mArguments.erase(mArguments.begin());
 }

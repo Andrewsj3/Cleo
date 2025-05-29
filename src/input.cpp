@@ -62,7 +62,7 @@ bool checkInput() { return !Threads::userInput.empty(); }
 
 void parseCmd(Command& cmd, const commandMap& programCommands) {
     std::string match{};
-	std::vector<std::string> matches{};
+    std::vector<std::string> matches{};
     if (programCommands.contains(cmd.function())) {
         programCommands.at(cmd.function())(cmd);
     } else {
@@ -74,21 +74,23 @@ void parseCmd(Command& cmd, const commandMap& programCommands) {
             programCommands.at(match)(cmd);
             return;
         case Match::MultipleMatch:
-            std::println("Multiple possible commands found, could be one of {}", join(matches, ", "));
+            std::println("Multiple possible commands found, could be one of {}",
+                         join(matches, ", "));
             break;
         }
     }
 }
 
 void executeCmds(const std::vector<Command>& commands) {
-    if (!Threads::helpMode) {
-        for (auto cmd : commands) {
+    for (auto cmd : commands) {
+        if (Threads::helpMode) {
+            Cleo::help(cmd);
+        } else {
             parseCmd(cmd, programCommands);
         }
-    } else {
-        for (auto cmd : commands) {
-            Cleo::help(cmd);
-        }
+        // help on its own sends us into help mode, any subsequent commands should be executed
+        // as if we are in help mode unless they return us to normal mode. Previously, commands
+        // were executed all in normal mode or all in help mode
     }
 }
 bool existsInHistory(HIST_ENTRY** history, const char* str) {
@@ -108,12 +110,12 @@ void inputThread() {
     using namespace std::chrono_literals;
     std::string input{};
     while (true) {
+        std::this_thread::sleep_for(
+            10ms); // Ensure prompt only appears after any commands have finished running
         if (!Threads::running)
             return;
         if (!Threads::readyForInput)
             continue;
-        std::this_thread::sleep_for(10ms); // Ensure prompt only appears after any commands have
-                                           // finished executing
         const char* prompt = Threads::helpMode ? "?> " : "> ";
         const char* input = readline(prompt);
         if (input == NULL /*in case of EOF*/) {
@@ -124,9 +126,6 @@ void inputThread() {
                 Threads::running = false;
                 return;
             }
-        } else if (strcmp(input, "exit") == 0 && Threads::helpMode) {
-            Threads::helpMode = false;
-            continue;
         }
         Threads::userInput = input;
         if (Threads::userInput.length() > 0) {

@@ -5,17 +5,17 @@
 #include <SFML/System.hpp>
 #include <print>
 #include <thread>
-#define CLEO_VERSION "0.5.1"
+#define CLEO_VERSION "0.5.2"
 
 int main() {
     sf::err().rdbuf(nullptr);
     updateSongs();
     std::println("Cleo " CLEO_VERSION ", powered by SFML");
-	std::thread statThreadObj{monitorChanges};
+    std::thread statThreadObj{monitorChanges};
     std::thread inputThreadObj{inputThread};
     std::thread backgroundThreadObj{backgroundThread};
 
-	statThreadObj.detach();
+    statThreadObj.detach();
     inputThreadObj.join();
     backgroundThreadObj.join();
     return 0;

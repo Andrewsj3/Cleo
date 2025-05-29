@@ -15,7 +15,8 @@
 #include <vector>
 using CommandDefinition = std::flat_map<std::string, std::string>;
 std::string join(const std::vector<std::string>&, std::string_view);
-static const std::vector<std::string> commands{"exit", "help", "list", "pause", "play", "stop", "volume"};
+static const std::vector<std::string> commands{"exit", "help", "list",  "pause",
+                                               "play", "stop", "volume"};
 static const CommandDefinition programHelp{
     {"play",
      R"(Usage: play <song>
@@ -29,7 +30,7 @@ You can also type the first part of the song and Cleo will try to autocomplete i
 With no arguments, shows the current volume.
 Otherwise, sets the new volume provided it is between 0 and 100.)"},
     {"help", "Shows how commands work and how you can use Cleo."},
-	{"commands", join(commands, "\n")},
+    {"commands", join(commands, "\n")},
 };
 static constexpr int VOLUME_TOO_LOW{-1};
 static constexpr int VOLUME_TOO_HIGH{-2};
@@ -47,7 +48,7 @@ void Cleo::play(Command& cmd) {
         return;
     std::string song{cmd.arguments().at(0)};
     std::string match{};
-	std::vector<std::string> matches{};
+    std::vector<std::string> matches{};
     std::filesystem::path songPath{Music::musicDir / song};
     // check for exact filename match including extension
     if (Music::load.openFromFile(songPath)) {
@@ -172,8 +173,16 @@ std::string join(const std::vector<std::string>& vec, std::string_view delim) {
 }
 
 void findHelp(const std::string& topic) {
+    if (topic == "quit") {
+        if (Threads::helpMode) {
+            Threads::helpMode = false;
+        } else {
+            std::println("No help found for 'quit'");
+        }
+        return;
+    }
     std::string match{};
-	std::vector<std::string> matches{};
+    std::vector<std::string> matches{};
     if (programHelp.contains(topic)) {
         std::println("{}", programHelp.at(topic));
     } else {
@@ -194,7 +203,7 @@ void Cleo::help(Command& cmd) {
     if (cmd.arguments().size() == 0 && !Threads::helpMode) {
         std::println("Welcome to Cleo's interactive help utility.");
         std::println("Type `commands` to see the list of commands.");
-        std::println("Type `exit` or CTRL-D to return to Cleo.");
+        std::println("Type `quit` or CTRL-D to return to Cleo.");
         Threads::helpMode = true;
         return;
     }
