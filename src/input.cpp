@@ -62,10 +62,11 @@ bool checkInput() { return !Threads::userInput.empty(); }
 
 void parseCmd(Command& cmd, const commandMap& programCommands) {
     std::string match{};
+	std::vector<std::string> matches{};
     if (programCommands.contains(cmd.function())) {
         programCommands.at(cmd.function())(cmd);
     } else {
-        switch (autocomplete(programCommands.keys(), cmd.function(), match)) {
+        switch (autocomplete(programCommands.keys(), cmd.function(), match, matches)) {
         case Match::NoMatch:
             std::println("Command '{}' not found", cmd.function());
             break;
@@ -73,7 +74,7 @@ void parseCmd(Command& cmd, const commandMap& programCommands) {
             programCommands.at(match)(cmd);
             return;
         case Match::MultipleMatch:
-            std::println("Multiple possible commands found, try refining your search");
+            std::println("Multiple possible commands found, could be one of {}", join(matches, ", "));
             break;
         }
     }

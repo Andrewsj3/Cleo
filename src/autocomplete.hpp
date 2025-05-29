@@ -5,4 +5,4 @@
 #include <vector>
 enum class Match { NoMatch, ExactMatch, MultipleMatch };
 
-Match autocomplete(const std::vector<std::string>&, std::string_view, std::string&);
+Match autocomplete(const std::vector<std::string>&, std::string_view, std::string&, std::vector<std::string>&);

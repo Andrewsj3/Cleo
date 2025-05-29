@@ -47,6 +47,7 @@ void Cleo::play(Command& cmd) {
         return;
     std::string song{cmd.arguments().at(0)};
     std::string match{};
+	std::vector<std::string> matches{};
     std::filesystem::path songPath{Music::musicDir / song};
     // check for exact filename match including extension
     if (Music::load.openFromFile(songPath)) {
@@ -55,14 +56,14 @@ void Cleo::play(Command& cmd) {
         return;
     }
     // check for exact name match not including extension
-    switch (autocomplete(Music::songs, song, match)) {
+    switch (autocomplete(Music::songs, song, match, matches)) {
     case Match::NoMatch:
         std::println("Song not found");
         return;
     case Match::ExactMatch:
         break;
     case Match::MultipleMatch:
-        std::println("Multiple matches found, try refining your search");
+        std::println("Multiple matches found, could be one of {}", join(matches, ", "));
         return;
     }
     bool foundSong{false};
@@ -172,10 +173,11 @@ std::string join(const std::vector<std::string>& vec, std::string_view delim) {
 
 void findHelp(const std::string& topic) {
     std::string match{};
+	std::vector<std::string> matches{};
     if (programHelp.contains(topic)) {
         std::println("{}", programHelp.at(topic));
     } else {
-        switch (autocomplete(programHelp.keys(), topic, match)) {
+        switch (autocomplete(programHelp.keys(), topic, match, matches)) {
         case Match::NoMatch:
             std::println("No help found for '{}'", topic);
             break;
@@ -183,7 +185,7 @@ void findHelp(const std::string& topic) {
             std::println("{}", programHelp.at(match));
             break;
         case Match::MultipleMatch:
-            std::println("Multiple matches found, try refining your search");
+            std::println("Multiple matches found, could be one of {}", join(matches, ", "));
             break;
         }
     }
