@@ -16,6 +16,9 @@ void updateSongs() {
     std::string filename{};
     std::vector<std::string> newSongs{};
     for (const auto& dirEntry: std::filesystem::directory_iterator(Music::musicDir)) {
+		if (!dirEntry.is_regular_file()) {
+			continue;
+		}
         filename = dirEntry.path().stem().string();
         newSongs.push_back(filename);
     }

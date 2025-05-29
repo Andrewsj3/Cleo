@@ -1,9 +1,14 @@
 #include "autocomplete.hpp"
 #include "command.hpp"
 #include "threads.hpp"
+#include "userCommands.hpp"
+#include <cstring>
 #include <flat_map>
 #include <print>
 #include <string>
+#include <string_view>
+#include <thread>
+#include <vector>
 #if defined(__unix)
 #include "readline/history.h"
 #include "readline/readline.h"
@@ -12,6 +17,11 @@
 #endif
 
 using commandMap = std::flat_map<std::string, std::function<void(Command&)>>;
+static const commandMap programCommands{
+    {"exit", Cleo::exit}, {"list", Cleo::list}, {"pause", Cleo::pause},
+    {"play", Cleo::play}, {"stop", Cleo::stop}, {"volume", Cleo::volume},
+    {"help", Cleo::help},
+};
 
 std::vector<Command> parseString(std::string_view input) {
     bool isQuoted{false};
@@ -69,6 +79,17 @@ void parseCmd(Command& cmd, const commandMap& programCommands) {
     }
 }
 
+void executeCmds(const std::vector<Command>& commands) {
+    if (!Threads::helpMode) {
+        for (auto cmd : commands) {
+            parseCmd(cmd, programCommands);
+        }
+    } else {
+        for (auto cmd : commands) {
+            Cleo::help(cmd);
+        }
+    }
+}
 bool existsInHistory(HIST_ENTRY** history, const char* str) {
     if (history == NULL) {
         return false;
@@ -83,16 +104,28 @@ bool existsInHistory(HIST_ENTRY** history, const char* str) {
 }
 
 void inputThread() {
+    using namespace std::chrono_literals;
     std::string input{};
     while (true) {
         if (!Threads::running)
             return;
         if (!Threads::readyForInput)
             continue;
-        const char* input = readline("> ");
+        std::this_thread::sleep_for(10ms); // Ensure prompt only appears after any commands have
+                                           // finished executing
+        const char* prompt = Threads::helpMode ? "?> " : "> ";
+        const char* input = readline(prompt);
         if (input == NULL /*in case of EOF*/) {
-            Threads::running = false;
-            return;
+            if (Threads::helpMode) /*Exit out of help mode*/ {
+                Threads::helpMode = false;
+                continue;
+            } else {
+                Threads::running = false;
+                return;
+            }
+        } else if (strcmp(input, "exit") == 0 && Threads::helpMode) {
+            Threads::helpMode = false;
+            continue;
         }
         Threads::userInput = input;
         if (Threads::userInput.length() > 0) {
@@ -102,18 +135,19 @@ void inputThread() {
     }
 }
 
-void backgroundThread(const commandMap& programCommands) {
+void backgroundThread() {
+    using namespace std::chrono_literals;
     std::vector<Command> commands{};
     while (true) {
         if (!Threads::running)
             return;
-        if (!checkInput())
+        if (!checkInput()) {
+            std::this_thread::sleep_for(10ms); // otherwise CPU goes brrrrrrr
             continue;
+        }
         Threads::readyForInput = false;
         commands = parseString(Threads::userInput);
-        for (auto& cmd : commands) {
-            parseCmd(cmd, programCommands);
-        }
+        executeCmds(commands);
         Threads::userInput.clear();
         Threads::readyForInput = true;
     }

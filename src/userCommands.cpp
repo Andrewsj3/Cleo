@@ -5,17 +5,34 @@
 #include "threads.hpp"
 #include <SFML/Audio/Music.hpp>
 #include <SFML/Audio/SoundSource.hpp>
-#include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <flat_map>
 #include <print>
 #include <set>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
-constexpr int VOLUME_TOO_LOW{-1};
-constexpr int VOLUME_TOO_HIGH{-2};
+using CommandDefinition = std::flat_map<std::string, std::string>;
+std::string join(const std::vector<std::string>&, std::string_view);
+static const std::vector<std::string> commands{"exit", "help", "list", "pause", "play", "stop", "volume"};
+static const CommandDefinition programHelp{
+    {"play",
+     R"(Usage: play <song>
+Looks for a song in the music directory (default ~/music)
+You can also type the first part of the song and Cleo will try to autocomplete it.)"},
+    {"list", "Lists all songs in the music directory."},
+    {"stop", "Stops the currently playing song."},
+    {"pause", "Toggles whether the music should be paused or not."},
+    {"exit", "Exits Cleo."},
+    {"volume", R"(Usage: volume [newVolume]
+With no arguments, shows the current volume.
+Otherwise, sets the new volume provided it is between 0 and 100.)"},
+    {"help", "Shows how commands work and how you can use Cleo."},
+	{"commands", join(commands, "\n")},
+};
+static constexpr int VOLUME_TOO_LOW{-1};
+static constexpr int VOLUME_TOO_HIGH{-2};
 
 bool checkArgCount(const std::vector<std::string>& args, size_t expectedCount,
                    std::string_view errMsg) {
@@ -82,9 +99,7 @@ void Cleo::list(Command&) {
 
 void Cleo::stop(Command&) { Music::music.stop(); }
 
-void Cleo::exit(Command&) {
-    Threads::running = false;
-}
+void Cleo::exit(Command&) { Threads::running = false; }
 
 void getVolume() {
     float curVolume{Music::music.getVolume()};
@@ -137,4 +152,57 @@ void Cleo::pause(Command&) {
         std::println("Cannot pause or unpause while music is stopped");
         break;
     }
+}
+
+std::string join(const std::vector<std::string>& vec, std::string_view delim) {
+    if (vec.size() == 0) {
+        return "";
+    } else if (vec.size() == 1) {
+        return vec.at(0);
+    }
+    std::string joined{};
+    for (std::vector<std::string>::const_iterator it = vec.begin(); it != vec.end(); ++it) {
+        joined += *it;
+        if (it != vec.end() - 1) {
+            joined += delim;
+        }
+    }
+    return joined;
+}
+
+void findHelp(const std::string& topic) {
+    std::string match{};
+    if (programHelp.contains(topic)) {
+        std::println("{}", programHelp.at(topic));
+    } else {
+        switch (autocomplete(programHelp.keys(), topic, match)) {
+        case Match::NoMatch:
+            std::println("No help found for '{}'", topic);
+            break;
+        case Match::ExactMatch:
+            std::println("{}", programHelp.at(match));
+            break;
+        case Match::MultipleMatch:
+            std::println("Multiple matches found, try refining your search");
+            break;
+        }
+    }
+}
+void Cleo::help(Command& cmd) {
+    if (cmd.arguments().size() == 0 && !Threads::helpMode) {
+        std::println("Welcome to Cleo's interactive help utility.");
+        std::println("Type `commands` to see the list of commands.");
+        std::println("Type `exit` or CTRL-D to return to Cleo.");
+        Threads::helpMode = true;
+        return;
+    }
+    std::string topic{};
+    if (Threads::helpMode) {
+        std::vector<std::string> args{cmd.function()};
+        args.append_range(cmd.arguments());
+        topic = join(args, " ");
+    } else {
+        topic = join(cmd.arguments(), " ");
+    }
+    findHelp(topic);
 }

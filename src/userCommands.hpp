@@ -2,6 +2,7 @@
 
 #include "command.hpp"
 namespace Cleo {
+    void help(Command&);
     void play(Command&);
     void list(Command&);
     void stop(Command&);
