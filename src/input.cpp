@@ -20,7 +20,7 @@ using commandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 static const commandMap programCommands{
     {"exit", Cleo::exit}, {"list", Cleo::list}, {"pause", Cleo::pause},
     {"play", Cleo::play}, {"stop", Cleo::stop}, {"volume", Cleo::volume},
-    {"help", Cleo::help},
+    {"help", Cleo::help}, {"time", Cleo::time},
 };
 
 std::vector<Command> parseString(std::string_view input) {

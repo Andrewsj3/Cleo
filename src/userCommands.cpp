@@ -16,7 +16,7 @@
 using CommandDefinition = std::flat_map<std::string, std::string>;
 std::string join(const std::vector<std::string>&, std::string_view);
 static const std::vector<std::string> commands{"exit", "help", "list",  "pause",
-                                               "play", "stop", "volume"};
+                                               "play", "stop", "time", "volume"};
 static const CommandDefinition programHelp{
     {"play",
      R"(Usage: play <song>
@@ -31,6 +31,7 @@ With no arguments, shows the current volume.
 Otherwise, sets the new volume provided it is between 0 and 100.)"},
     {"help", "Shows how commands work and how you can use Cleo."},
     {"commands", join(commands, "\n")},
+	{"time", "Shows the current song's elapsed time and remaining time."}
 };
 static constexpr int VOLUME_TOO_LOW{-1};
 static constexpr int VOLUME_TOO_HIGH{-2};
@@ -216,4 +217,17 @@ void Cleo::help(Command& cmd) {
         topic = join(cmd.arguments(), " ");
     }
     findHelp(topic);
+}
+
+void Cleo::time(Command&) {
+    if (Music::music.getStatus() == sf::Music::Status::Stopped) {
+        std::println("Nothing playing");
+    } else {
+        int timeElapsed{(int)Music::music.getPlayingOffset().asSeconds()};
+        auto [elapsedMins, elapsedSecs]{std::div(timeElapsed, 60)};
+        int remaining{(int)Music::music.getDuration().asSeconds() - timeElapsed};
+        auto [remainingMins, remainingSecs]{std::div(remaining, 60)};
+        std::println("{0:}:{1:02} elapsed, {2:}:{3:02} remaining", elapsedMins, elapsedSecs, remainingMins,
+                     remainingSecs);
+    }
 }
