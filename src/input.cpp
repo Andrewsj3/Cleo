@@ -112,9 +112,9 @@ void inputThread() {
     while (true) {
         std::this_thread::sleep_for(
             10ms); // Ensure prompt only appears after any commands have finished running
-        if (!Threads::running)
+        if (!Threads::running) [[unlikely]]
             return;
-        if (!Threads::readyForInput)
+        if (!Threads::readyForInput) [[unlikely]]
             continue;
         const char* prompt = Threads::helpMode ? "?> " : "> ";
         const char* input = readline(prompt);
@@ -139,9 +139,9 @@ void backgroundThread() {
     using namespace std::chrono_literals;
     std::vector<Command> commands{};
     while (true) {
-        if (!Threads::running)
+        if (!Threads::running) [[unlikely]]
             return;
-        if (!checkInput()) {
+        if (!checkInput()) [[likely]] {
             std::this_thread::sleep_for(10ms); // otherwise CPU goes brrrrrrr
             continue;
         }
