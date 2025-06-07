@@ -1,7 +1,9 @@
 #include "autocomplete.hpp"
 #include "command.hpp"
+#include "music.hpp"
 #include "threads.hpp"
 #include "userCommands.hpp"
+#include <SFML/Audio/Music.hpp>
 #include <cstring>
 #include <flat_map>
 #include <print>
@@ -17,11 +19,11 @@
 #endif
 
 using commandMap = std::flat_map<std::string, std::function<void(Command&)>>;
-static const commandMap programCommands{
-    {"exit", Cleo::exit}, {"list", Cleo::list}, {"pause", Cleo::pause},
-    {"play", Cleo::play}, {"stop", Cleo::stop}, {"volume", Cleo::volume},
-    {"help", Cleo::help}, {"time", Cleo::time}, {"loop", Cleo::loop},
-};
+static const commandMap programCommands{{"exit", Cleo::exit},   {"list", Cleo::list},
+                                        {"pause", Cleo::pause}, {"play", Cleo::play},
+                                        {"stop", Cleo::stop},   {"volume", Cleo::volume},
+                                        {"help", Cleo::help},   {"time", Cleo::time},
+                                        {"loop", Cleo::loop},   {"repeat", Cleo::repeat}};
 
 std::vector<Command> parseString(std::string_view input) {
     bool isQuoted{false};
@@ -106,6 +108,24 @@ bool existsInHistory(HIST_ENTRY** history, const char* str) {
     return false;
 }
 
+bool shouldRepeat() {
+    if (Music::music.isLooping()) {
+        return false;
+    }
+    long offsetMillis{Music::music.getPlayingOffset().asMilliseconds()};
+    long durationMillis{Music::music.getDuration().asMilliseconds()};
+    if (offsetMillis == 0) {
+        return false;
+    }
+    if (durationMillis - offsetMillis <= 20) {
+        if (Music::repeats > 0) {
+            return true;
+        }
+		Music::curSong = "";
+    }
+    return false;
+}
+
 void inputThread() {
     using namespace std::chrono_literals;
     std::string input{};
@@ -139,6 +159,10 @@ void backgroundThread() {
     using namespace std::chrono_literals;
     std::vector<Command> commands{};
     while (true) {
+        if (shouldRepeat()) {
+            --Music::repeats;
+            Music::music.play();
+        }
         if (!Threads::running) [[unlikely]]
             return;
         if (!checkInput()) [[likely]] {

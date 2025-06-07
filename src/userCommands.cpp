@@ -15,8 +15,8 @@
 #include <vector>
 using CommandDefinition = std::flat_map<std::string, std::string>;
 std::string join(const std::vector<std::string>&, std::string_view);
-static const std::vector<std::string> commands{"exit", "help", "list", "loop",  "pause",
-                                               "play", "stop", "time", "volume"};
+static const std::vector<std::string> commands{"exit", "help",   "list", "loop", "pause",
+                                               "play", "repeat", "stop", "time", "volume"};
 static const CommandDefinition programHelp{
     {"play",
      R"(Usage: play <song>
@@ -32,9 +32,13 @@ Otherwise, sets the new volume provided it is between 0 and 100.)"},
     {"help", "Shows how commands work and how you can use Cleo."},
     {"commands", join(commands, "\n")},
     {"time", "Shows the current song's elapsed time and remaining time."},
-    {"loop", "Toggles whether songs should loop when they reach the end."}};
+    {"loop", "Toggles whether songs should loop when they reach the end."},
+    {"repeat", R"(Usage: repeat [numRepeats]
+By default, repeats the song once.
+Otherwise, repeats the song the given number of times provided it is at least 0.)"}};
 static constexpr int VOLUME_TOO_LOW{-1};
 static constexpr int VOLUME_TOO_HIGH{-2};
+static constexpr int REPEATS_TOO_LOW{-3};
 
 bool checkArgCount(const std::vector<std::string>& args, size_t expectedCount,
                    std::string_view errMsg) {
@@ -55,6 +59,7 @@ void Cleo::play(Command& cmd) {
     if (Music::load.openFromFile(songPath)) {
         (void)Music::music.openFromFile(songPath);
         Music::music.play();
+        Music::curSong = song;
         return;
     }
     // check for exact name match not including extension
@@ -73,6 +78,7 @@ void Cleo::play(Command& cmd) {
         if (Music::load.openFromFile(Music::musicDir / (match + ext))) {
             (void)Music::music.openFromFile(Music::musicDir / (match + ext));
             foundSong = true;
+            Music::curSong = match;
             break;
         }
     }
@@ -109,10 +115,10 @@ void getVolume() {
     std::println("Volume: {}%", curVolume);
 }
 
-void setVolume(const std::string& strVolume) {
+void setVolume(const std::string& volume) {
     float newVolume{};
     try {
-        newVolume = std::stof(strVolume);
+        newVolume = std::stof(volume);
         if (newVolume < 0) {
             throw VOLUME_TOO_LOW;
         } else if (newVolume > 100) {
@@ -235,4 +241,40 @@ void Cleo::time(Command&) {
 void Cleo::loop(Command&) {
     Music::music.setLooping(!Music::music.isLooping());
     std::println("Looping: {}", Music::music.isLooping() ? "enabled" : "disabled");
+}
+
+bool setRepeats(const std::string& repeats) {
+    int newRepeats{};
+    try {
+        newRepeats = std::stoi(repeats);
+        if (newRepeats < 0) {
+            throw REPEATS_TOO_LOW;
+        }
+        Music::repeats = newRepeats;
+        return true;
+    } catch (const std::exception&) {
+        std::println("Repeats must be a number");
+        Music::repeats = 0;
+        return false;
+    } catch (const int) {
+        std::println("Repeats must be at least 0");
+        Music::repeats = 0;
+        return false;
+    }
+}
+void Cleo::repeat(Command& cmd) {
+    bool successful{true};
+    if (Music::curSong == "") {
+        std::println("Nothing playing");
+        return;
+    }
+    if (cmd.arguments().size() == 0) {
+        Music::repeats = 1;
+    } else {
+        successful = setRepeats(cmd.arguments().at(0));
+    }
+    if (successful) {
+        std::println("{} will be repeated {} time{}", Music::curSong, Music::repeats,
+                     Music::repeats == 1 ? "" : "s");
+    }
 }

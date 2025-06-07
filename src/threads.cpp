@@ -1,7 +1,9 @@
 #include "threads.hpp"
 #include <string>
 
-std::string Threads::userInput{};
-bool Threads::running{true};
-bool Threads::readyForInput{true};
-bool Threads::helpMode{false};
+namespace Threads {
+    std::string userInput{};
+    bool running{true};
+    bool readyForInput{true};
+    bool helpMode{false};
+} // namespace Threads

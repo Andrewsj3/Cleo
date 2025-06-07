@@ -11,6 +11,8 @@ namespace Music {
     extern const std::filesystem::path musicDir;
     extern const std::unordered_set<std::string> supportedExtensions;
     extern std::vector<std::string> songs;
+    extern int repeats;
+    extern std::string curSong;
 } // namespace Music
 
 void updateSongs();

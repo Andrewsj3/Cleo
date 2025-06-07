@@ -6,12 +6,15 @@
 
 std::filesystem::path getHome() { return std::getenv("HOME"); }
 
-sf::Music Music::music{};
-sf::Music Music::load{};
-const std::filesystem::path Music::musicDir{getHome() / "music"};
-const std::unordered_set<std::string> Music::supportedExtensions{".mp3", ".ogg", ".flac",
-                                                                 ".wav"};
-std::vector<std::string> Music::songs{};
+namespace Music {
+    sf::Music music{};
+    sf::Music load{};
+    const std::filesystem::path musicDir{getHome() / "music"};
+    const std::unordered_set<std::string> supportedExtensions{".mp3", ".ogg", ".flac", ".wav"};
+    std::vector<std::string> songs{};
+    int repeats{};
+    std::string curSong{};
+} // namespace Music
 
 void updateSongs() {
     std::string filename{};
