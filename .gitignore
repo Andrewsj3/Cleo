@@ -2,6 +2,6 @@
 cleo
 
 # Object files
-src/*.o
+obj/
 
 compile_flags.txt
