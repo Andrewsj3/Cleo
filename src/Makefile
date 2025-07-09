@@ -7,7 +7,7 @@ CXXSTD = -std=c++23
 CXXFLAGS = $(CXXSTD)
 CXXFLAGS += -Wall -Wextra -Wpedantic -Wformat -Wextra -Weffc++ -Wconversion
 LDFLAGS = `pkg-config --libs sfml-audio readline`
-MAKEFLAGS += --no-builtin-rules --no-builtin-variables
+MAKEFLAGS += --no-builtin-rules --no-builtin-variables -j6
 DEBUG = 0
 ifeq ($(DEBUG), 1)
 	CXXFLAGS += -ggdb -UNDEBUG

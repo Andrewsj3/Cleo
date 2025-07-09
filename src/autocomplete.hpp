@@ -4,6 +4,10 @@
 #include <string_view>
 #include <vector>
 enum class Match { NoMatch, ExactMatch, MultipleMatch };
+struct MusicMatch {
+    Match matchType{};
+    std::vector<std::string> matches{};
+    const std::string exactMatch();
+};
 
-Match autocomplete(const std::vector<std::string>&, std::string_view, std::string&,
-                   std::vector<std::string>&);
+MusicMatch autocomplete(const std::vector<std::string>&, std::string_view);

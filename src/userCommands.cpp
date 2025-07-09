@@ -52,8 +52,6 @@ void Cleo::play(Command& cmd) {
     if (!checkArgCount(cmd.arguments(), 1, "Expected exactly one song to play"))
         return;
     std::string song{cmd.arguments().at(0)};
-    std::string match{};
-    std::vector<std::string> matches{};
     std::filesystem::path songPath{Music::musicDir / song};
     // check for exact filename match including extension
     if (Music::load.openFromFile(songPath)) {
@@ -63,22 +61,25 @@ void Cleo::play(Command& cmd) {
         return;
     }
     // check for exact name match not including extension
-    switch (autocomplete(Music::songs, song, match, matches)) {
+    MusicMatch match{autocomplete(Music::songs, song)};
+    std::string matchedSong{};
+    switch (match.matchType) {
     case Match::NoMatch:
         std::println("Song not found");
         return;
     case Match::ExactMatch:
+        matchedSong = match.matches.at(0);
         break;
     case Match::MultipleMatch:
-        std::println("Multiple matches found, could be one of {}", join(matches, ", "));
+        std::println("Multiple matches found, could be one of {}", join(match.matches, ", "));
         return;
     }
     bool foundSong{false};
     for (const auto& ext : Music::supportedExtensions) {
-        if (Music::load.openFromFile(Music::musicDir / (match + ext))) {
-            (void)Music::music.openFromFile(Music::musicDir / (match + ext));
+        if (Music::load.openFromFile(Music::musicDir / (matchedSong + ext))) {
+            (void)Music::music.openFromFile(Music::musicDir / (matchedSong + ext));
             foundSong = true;
-            Music::curSong = match;
+            Music::curSong = matchedSong;
             break;
         }
     }
@@ -188,20 +189,20 @@ void findHelp(const std::string& topic) {
         }
         return;
     }
-    std::string match{};
-    std::vector<std::string> matches{};
     if (programHelp.contains(topic)) {
         std::println("{}", programHelp.at(topic));
     } else {
-        switch (autocomplete(programHelp.keys(), topic, match, matches)) {
+        MusicMatch match{autocomplete(programHelp.keys(), topic)};
+        switch (match.matchType) {
         case Match::NoMatch:
             std::println("No help found for '{}'", topic);
             break;
         case Match::ExactMatch:
-            std::println("{}", programHelp.at(match));
+            std::println("{}", programHelp.at(match.exactMatch()));
             break;
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}", join(matches, ", "));
+            std::println("Multiple matches found, could be one of {}",
+                         join(match.matches, ", "));
             break;
         }
     }
@@ -274,7 +275,7 @@ void Cleo::repeat(Command& cmd) {
         successful = setRepeats(cmd.arguments().at(0));
     }
     if (successful) {
-        std::println("{} will be repeated {} time{}", Music::curSong, Music::repeats,
+        std::println("{} will be repeated {} time{}.", Music::curSong, Music::repeats,
                      Music::repeats == 1 ? "" : "s");
     }
 }

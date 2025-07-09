@@ -68,12 +68,13 @@ void parseCmd(Command& cmd, const commandMap& programCommands) {
     if (programCommands.contains(cmd.function())) {
         programCommands.at(cmd.function())(cmd);
     } else {
-        switch (autocomplete(programCommands.keys(), cmd.function(), match, matches)) {
+        MusicMatch match{autocomplete(programCommands.keys(), cmd.function())};
+        switch (match.matchType) {
         case Match::NoMatch:
             std::println("Command '{}' not found", cmd.function());
             break;
         case Match::ExactMatch:
-            programCommands.at(match)(cmd);
+            programCommands.at(match.exactMatch())(cmd);
             return;
         case Match::MultipleMatch:
             std::println("Multiple possible commands found, could be one of {}",
@@ -121,7 +122,7 @@ bool shouldRepeat() {
         if (Music::repeats > 0) {
             return true;
         }
-		Music::curSong = "";
+        Music::curSong = "";
     }
     return false;
 }
