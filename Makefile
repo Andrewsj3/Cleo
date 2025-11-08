@@ -10,7 +10,7 @@ CXXSTD = -std=c++23
 CXXFLAGS = $(CXXSTD)
 CXXFLAGS += -Wall -Wextra -Wpedantic -Wformat -Wextra -Weffc++ -Wconversion
 LDFLAGS = `pkg-config --libs sfml-audio readline`
-MAKEFLAGS += --no-builtin-rules --no-builtin-variables -j10
+MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 DEBUG = 0
 ifeq ($(DEBUG), 1)
 	CXXFLAGS += -ggdb -UNDEBUG
@@ -18,14 +18,14 @@ else
 	CXXFLAGS += -DNDEBUG
 endif
 
-./obj/%.o:./src/%.cpp $(OBJ_DIR)
+$(OBJ_DIR)/%.o:$(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
-all: $(EXE)
+all: $(EXE) $(OBJ_DIR)
 	@echo All sources built successfully
 
 $(OBJ_DIR):
-	mkdir ./obj
+	mkdir -p ./obj
 
 $(EXE): $(OBJS)
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)

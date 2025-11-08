@@ -103,7 +103,7 @@ void Cleo::list(Command&) {
         sb << dirEntry << ", ";
     }
     std::string dirList{sb.str()};
-    dirList.erase(dirList.size() - 2);
+    dirList.erase(dirList.size() - 2); // remove trailing comma and space
     std::println("{}", dirList);
 }
 

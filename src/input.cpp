@@ -64,7 +64,6 @@ bool checkInput() { return !Threads::userInput.empty(); }
 
 void parseCmd(Command& cmd, const commandMap& programCommands) {
     std::string match{};
-    std::vector<std::string> matches{};
     if (programCommands.contains(cmd.function())) {
         programCommands.at(cmd.function())(cmd);
     } else {
@@ -78,7 +77,7 @@ void parseCmd(Command& cmd, const commandMap& programCommands) {
             return;
         case Match::MultipleMatch:
             std::println("Multiple possible commands found, could be one of {}",
-                         join(matches, ", "));
+                         join(match.matches, ", "));
             break;
         }
     }
