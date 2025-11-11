@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ostream>
+#include <cstddef>
 #include <string>
 #include <vector>
 class Command {
@@ -10,9 +10,11 @@ public:
 
     const std::string& function() const;
     const std::vector<std::string>& arguments() const;
-    void shift();
+    std::string nextArg();
+    std::size_t argCount();
 
 private:
     std::string mFunction{};
     std::vector<std::string> mArguments{};
+    void shift();
 };

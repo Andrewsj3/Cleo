@@ -1,6 +1,9 @@
 #include "command.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <stdexcept>
+#include <string>
 
 void lower(std::string& str) {
     std::transform(str.cbegin(), str.cend(), str.begin(),
@@ -27,3 +30,11 @@ void Command::shift() {
     lower(mFunction);
     mArguments.erase(mArguments.begin());
 }
+
+std::string Command::nextArg() {
+    std::string arg{mArguments.front()};
+    shift();
+    return arg;
+}
+
+std::size_t Command::argCount() { return mArguments.size(); }

@@ -17,4 +17,6 @@ namespace Cleo {
     void time(Command&);
     void loop(Command&);
     void repeat(Command&);
+    void rename(Command&);
+    void del(Command&);
 } // namespace Cleo

@@ -10,7 +10,7 @@ namespace Music {
     sf::Music music{};
     sf::Music load{};
     const std::filesystem::path musicDir{getHome() / "music"};
-    const std::unordered_set<std::string> supportedExtensions{".mp3", ".ogg", ".flac", ".wav"};
+    const std::unordered_set<std::string> supportedExtensions{".mp3", ".ogg", ".flac", ".wav", ".aiff"};
     std::vector<std::string> songs{};
     int repeats{};
     std::string curSong{};

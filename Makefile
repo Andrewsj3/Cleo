@@ -13,7 +13,7 @@ LDFLAGS = `pkg-config --libs sfml-audio readline`
 MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 DEBUG = 0
 ifeq ($(DEBUG), 1)
-	CXXFLAGS += -ggdb -UNDEBUG
+	CXXFLAGS += -ggdb -UNDEBUG -fsanitize=address
 else
 	CXXFLAGS += -DNDEBUG
 endif

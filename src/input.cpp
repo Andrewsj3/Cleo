@@ -19,11 +19,12 @@
 #endif
 
 using commandMap = std::flat_map<std::string, std::function<void(Command&)>>;
-static const commandMap programCommands{{"exit", Cleo::exit},   {"list", Cleo::list},
-                                        {"pause", Cleo::pause}, {"play", Cleo::play},
-                                        {"stop", Cleo::stop},   {"volume", Cleo::volume},
-                                        {"help", Cleo::help},   {"time", Cleo::time},
-                                        {"loop", Cleo::loop},   {"repeat", Cleo::repeat}};
+static const commandMap programCommands{
+    {"exit", Cleo::exit},     {"list", Cleo::list},     {"pause", Cleo::pause},
+    {"play", Cleo::play},     {"stop", Cleo::stop},     {"volume", Cleo::volume},
+    {"help", Cleo::help},     {"time", Cleo::time},     {"loop", Cleo::loop},
+    {"repeat", Cleo::repeat}, {"rename", Cleo::rename}, {"delete", Cleo::del},
+};
 
 std::vector<Command> parseString(std::string_view input) {
     bool isQuoted{false};
@@ -69,16 +70,16 @@ void parseCmd(Command& cmd, const commandMap& programCommands) {
     } else {
         MusicMatch match{autocomplete(programCommands.keys(), cmd.function())};
         switch (match.matchType) {
-        case Match::NoMatch:
-            std::println("Command '{}' not found", cmd.function());
-            break;
-        case Match::ExactMatch:
-            programCommands.at(match.exactMatch())(cmd);
-            return;
-        case Match::MultipleMatch:
-            std::println("Multiple possible commands found, could be one of {}",
-                         join(match.matches, ", "));
-            break;
+            case Match::NoMatch:
+                std::println("Command '{}' not found.", cmd.function());
+                break;
+            case Match::ExactMatch:
+                programCommands.at(match.exactMatch())(cmd);
+                return;
+            case Match::MultipleMatch:
+                std::println("Multiple possible commands found, could be one of {}.",
+                             join(match.matches, ", "));
+                break;
         }
     }
 }
@@ -147,7 +148,8 @@ void inputThread() {
                 return;
             }
         }
-        Threads::userInput = input;
+        Threads::userInput = std::move(input);
+        std::free((void*)input);
         if (Threads::userInput.length() > 0) {
             if (!existsInHistory(history_list(), Threads::userInput.c_str()))
                 add_history(Threads::userInput.c_str());
