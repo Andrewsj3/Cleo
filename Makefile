@@ -18,7 +18,10 @@ else
 	CXXFLAGS += -DNDEBUG
 endif
 
-$(OBJ_DIR)/%.o:$(SRC_DIR)/%.cpp
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/%.hpp
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 all: $(EXE) $(OBJ_DIR)

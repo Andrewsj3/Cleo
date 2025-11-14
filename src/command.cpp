@@ -16,6 +16,7 @@ Command::Command(const std::vector<std::string>& components) {
     lower(mFunction);
     if (components.size() > 1) {
         mArguments = std::vector<std::string>(components.begin() + 1, components.end());
+        // The +1 skips mFunction being included in the command arguments
     }
 }
 const std::string& Command::function() const { return mFunction; }

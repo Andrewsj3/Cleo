@@ -1,6 +1,7 @@
 #pragma once
 
 #include "command.hpp"
+#include <flat_map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -19,4 +20,8 @@ namespace Cleo {
     void repeat(Command&);
     void rename(Command&);
     void del(Command&);
+    void playlist(Command&);
+    const extern std::flat_map<std::string, std::function<void(Command&)>> commands;
+    const extern std::flat_map<std::string, std::string> commandHelp;
+    const extern std::vector<std::string> commandList;
 } // namespace Cleo

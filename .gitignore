@@ -4,4 +4,5 @@ cleo
 # Object files
 obj/
 
-compile_flags.txt
+.cache/
+compile_commands.json
