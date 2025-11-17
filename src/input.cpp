@@ -67,7 +67,7 @@ void parseCmd(Command& cmd, const CommandMap& commands) {
     if (commands.contains(cmd.function())) {
         commands.at(cmd.function())(cmd);
     } else {
-        MusicMatch match{autocomplete(commands.keys(), cmd.function())};
+        AutoMatch match{commands.keys(), cmd.function()};
         switch (match.matchType) {
             case Match::NoMatch:
                 std::println("Command '{}' not found.", cmd.function());
@@ -130,7 +130,9 @@ bool shouldRepeat() {
 
 bool shouldAdvance() {
     if (Music::playlistIdx == 0 || !Music::inPlaylistMode ||
-        Music::music.getStatus() == sf::Music::Status::Playing) {
+        Music::music.getStatus() == sf::Music::Status::Playing || Music::music.isLooping()) {
+        // Note the looping check is redundant, but we put it in to indicate looping takes
+        // precedence over advancing the playlist
         return false;
     } else if (Music::playlistIdx < Music::curPlaylist.size()) {
         return true;

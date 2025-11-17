@@ -88,7 +88,7 @@ void Playlist::load(Command& cmd) {
         parsePlaylist(Music::playlistDir / playlist);
         return;
     }
-    MusicMatch match{autocomplete(Music::playlists, playlist)};
+    AutoMatch match{Music::playlists, playlist};
     fs::path playlistPath{};
     switch (match.matchType) {
         case Match::NoMatch:
@@ -125,7 +125,7 @@ void Playlist::add(Command& cmd) {
         return;
     }
     std::string song{cmd.nextArg()};
-    MusicMatch match{autocomplete(Music::songs, song)};
+    AutoMatch match{Music::songs, song};
     fs::path songPath{};
     switch (match.matchType) {
         case Match::NoMatch:

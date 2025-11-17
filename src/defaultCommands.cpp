@@ -16,6 +16,8 @@
 #include <vector>
 using CommandDefinition = std::flat_map<std::string, std::string>;
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
+// Note this definition means each command has the same signature, even though some commands
+// don't need arguments
 
 namespace fs = std::filesystem;
 const CommandMap Cleo::commands{
@@ -85,7 +87,6 @@ void Cleo::play(Command& cmd) {
     std::string song{cmd.nextArg()};
     fs::path songPath{Music::musicDir / song};
     if (fs::exists(songPath)) {
-        // User entered exact match
         if (Music::music.openFromFile(songPath)) {
             Music::curSong = song;
             Music::music.play();
@@ -94,7 +95,7 @@ void Cleo::play(Command& cmd) {
         }
         return;
     }
-    MusicMatch match{autocomplete(Music::songs, song)};
+    AutoMatch match{Music::songs, song};
     std::string matchedSong{};
     switch (match.matchType) {
         case Match::NoMatch:
@@ -113,6 +114,7 @@ void Cleo::play(Command& cmd) {
         return;
     }
     Music::curSong = fs::path(matchedSong).stem();
+    Music::repeats = 0;
     Music::music.play();
 }
 
@@ -224,7 +226,7 @@ void findHelp(const CommandDefinition& domain, const std::string& topic) {
         std::println("{}", domain.at(topic));
         return;
     }
-    MusicMatch match{autocomplete(domain.keys(), topic)};
+    AutoMatch match{domain.keys(), topic};
     switch (match.matchType) {
         case Match::NoMatch:
             std::println("No help found for '{}'.", topic);
@@ -248,23 +250,32 @@ void Cleo::help(Command& cmd) {
         return;
     }
     CommandDefinition domain{Cleo::commandHelp};
-    std::string topic{};
+    std::vector<std::string> args{};
+    std::string search{};
     if (Threads::helpMode) {
-        std::vector<std::string> args{cmd.function()};
-        args.append_range(cmd.arguments());
-        if (args.front() == "playlist" && args.size() > 1) {
-            // TODO: Allow user to abbreviate playlist when searching for playlist help
-            args.erase(args.begin());
-            domain = Playlist::commandHelp;
-        }
-        topic = join(args, " ");
+        search = cmd.function();
     } else {
-        if (cmd.arguments().front() == "playlist" && cmd.argCount() > 1) {
-            cmd.nextArg();
-            domain = Playlist::commandHelp;
-        }
-        topic = join(cmd.arguments(), " ");
+        search = cmd.nextArg();
     }
+    AutoMatch match{domain.keys(), search};
+    switch (match.matchType) {
+        case Match::NoMatch:
+            std::println("No help found for '{}'", search);
+            return;
+        case Match::ExactMatch:
+            if (match.exactMatch() == "playlist" && cmd.argCount() >= 1) {
+                domain = Playlist::commandHelp;
+            } else {
+                args.push_back(match.exactMatch());
+            }
+            args.append_range(cmd.arguments());
+            break;
+        case Match::MultipleMatch:
+            std::println("Multiple matches found, could be one of {}.",
+                         join(match.matches, ", "));
+            return;
+    }
+    std::string topic{join(args, " ")};
     findHelp(domain, topic);
 }
 
@@ -329,7 +340,7 @@ void Cleo::rename(Command& cmd) {
     }
     std::string oldName{cmd.nextArg()};
     std::string newName{cmd.nextArg()};
-    MusicMatch match{autocomplete(Music::songs, oldName)};
+    AutoMatch match{Music::songs, oldName};
     fs::path songToRename;
     switch (match.matchType) {
         case Match::NoMatch:
@@ -356,7 +367,7 @@ void Cleo::del(Command& cmd) {
         return;
     }
     std::string songToDelete{cmd.nextArg()};
-    MusicMatch match{autocomplete(Music::songs, songToDelete)};
+    AutoMatch match{Music::songs, songToDelete};
     fs::path songPath;
     switch (match.matchType) {
         case Match::NoMatch:

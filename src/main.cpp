@@ -5,7 +5,7 @@
 #include <SFML/System.hpp>
 #include <print>
 #include <thread>
-#define CLEO_VERSION "0.10.0"
+#define CLEO_VERSION "0.10.1"
 
 int main() {
     sf::err().rdbuf(nullptr); // Silence SFML errors, we provide our own.
