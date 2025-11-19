@@ -6,11 +6,13 @@
 #include "playlistCommands.hpp"
 #include "threads.hpp"
 #include <SFML/Audio/Music.hpp>
+#include <SFML/System/Time.hpp>
 #include <algorithm>
-#include <exception>
+#include <cmath>
 #include <filesystem>
 #include <flat_map>
 #include <print>
+#include <regex>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -25,11 +27,12 @@ const CommandMap Cleo::commands{
     {"play", Cleo::play},         {"stop", Cleo::stop},      {"volume", Cleo::volume},
     {"help", Cleo::help},         {"time", Cleo::time},      {"loop", Cleo::loop},
     {"repeat", Cleo::repeat},     {"rename", Cleo::rename},  {"delete", Cleo::del},
-    {"playlist", Cleo::playlist}, {"queue", Cleo::playlist},
+    {"playlist", Cleo::playlist}, {"queue", Cleo::playlist}, {"seek", Cleo::seek},
+    {"forward", Cleo::forward},   {"rewind", Cleo::rewind},
 };
 const std::vector<std::string> Cleo::commandList{
-    "delete",   "exit",   "help",   "list", "loop", "pause",  "play",
-    "playlist", "rename", "repeat", "stop", "time", "volume",
+    "delete",   "exit",   "forward", "help",   "list", "loop", "pause", "play",
+    "playlist", "rename", "repeat",  "rewind", "seek", "stop", "time",  "volume",
 };
 const CommandDefinition Cleo::commandHelp{
     {"play",
@@ -73,7 +76,17 @@ as long as it doesn't match anything else, e.g.
 This allows you to interact with the playlist in various ways.
 If no subcommand is specified, it will show all songs in the playlist.
 Do `playlist commands` to see all subcommands or `playlist <subcommand>` to see more
-specific help. Note: you can also use the alias `queue` to make autocompletion easier.)"}};
+specific help. Note: you can also use the alias `queue` to make autocompletion easier.)"},
+    {"seek", R"(Usage: seek <duration/timestamp>
+Seeks to the specified duration or timestamp, only works if there is currently a song playing.
+Accepts either a positive whole amount in seconds or a timestamp in one of these formats:
+hh:mm:ss or mm:ss
+Seeking past the end of the song goes straight to the end and stops playback.)"},
+    {"forward", R"(Usage: forward <duration/timestamp>
+Like seek, but takes current time elapsed into account and adds the given duration.)"},
+    {"rewind", R"(Usage: rewind <duration/timestamp>
+Like seek, but takes current time elapsed into account and subtracts the given duration.)"},
+};
 
 static constexpr int VOLUME_TOO_LOW{-1};
 static constexpr int VOLUME_TOO_HIGH{-2};
@@ -211,6 +224,21 @@ std::string join(const std::vector<std::string>& vec, std::string_view delim) {
         }
     }
     return joined;
+}
+
+std::vector<std::string> split(const std::string& str, std::string_view delim) {
+    std::size_t curPos{0};
+    std::size_t endPos{0};
+    std::size_t delimLen{delim.length()};
+    std::string curToken{};
+    std::vector<std::string> ret{};
+    while ((endPos = str.find(delim, curPos)) != std::string::npos) {
+        curToken = str.substr(curPos, endPos - curPos);
+        curPos = endPos + delimLen;
+        ret.push_back(curToken);
+    }
+    ret.push_back(str.substr(curPos));
+    return ret;
 }
 
 void findHelp(const CommandDefinition& domain, const std::string& topic) {
@@ -401,3 +429,78 @@ void Cleo::playlist(Command& cmd) {
     cmd.nextArg();
     parseCmd(cmd, Playlist::commands);
 }
+
+int timestampAsNum(const std::string& timestamp) {
+    static const std::regex timestampFormat{R"(^([0-9]?[1-9]:)?[0-5]?[0-9]:[0-5][0-9]$)"};
+    int duration{};
+    std::vector<std::string> timestampComponents{};
+    constexpr int numTimestampComponents{3};
+    if (std::regex_match(timestamp, timestampFormat)) {
+        timestampComponents = split(timestamp, ":");
+    } else {
+        return -1;
+    }
+    std::reverse(timestampComponents.begin(), timestampComponents.end());
+    timestampComponents.resize(
+        numTimestampComponents); // 3 integers representing hours, minutes, and seconds
+    for (std::size_t i{0}; i < numTimestampComponents; ++i) {
+        if (!timestampComponents[i].empty()) {
+            duration += std::stoi(timestampComponents[i]) * (int)std::pow(60, i);
+        }
+    }
+    return duration;
+}
+
+sf::Time getTime(Command& cmd) {
+    std::size_t length{};
+    std::string time{cmd.nextArg()};
+    int timestamp{};
+    try {
+        timestamp = std::stoi(time, &length);
+        if (length != time.length()) {
+            throw std::exception{};
+        }
+    } catch (const std::exception&) {
+        timestamp = timestampAsNum(time);
+    }
+    return sf::seconds((float)timestamp);
+}
+
+void seekRelative(Command& cmd, bool forward) {
+    sf::Time duration{getTime(cmd)};
+    if (duration.asSeconds() < 0) {
+        std::println("Invalid duration or timestamp given. See 'help timestamp' for more.");
+        return;
+    }
+    sf::Time curOffset{Music::music.getPlayingOffset()};
+    if (forward) {
+        Music::music.setPlayingOffset(curOffset + duration);
+    } else {
+        if ((curOffset - duration).asSeconds() < 0) {
+            Music::music.setPlayingOffset(sf::Time::Zero);
+        } else {
+            Music::music.setPlayingOffset(curOffset - duration);
+        }
+    }
+}
+
+void Cleo::seek(Command& cmd) {
+    if (cmd.argCount() != 1) {
+        std::println("Expected a timestamp or duration in seconds to seek to.");
+        return;
+    }
+    if (Music::music.getStatus() == sf::Music::Status::Stopped) {
+        std::println("Nothing playing.");
+        return;
+    }
+    sf::Time offset{getTime(cmd)};
+    if (offset.asSeconds() < 0) {
+        std::println("Invalid duration or timestamp given. See 'help timestamp' for more.");
+        return;
+    }
+    Music::music.setPlayingOffset(offset);
+}
+
+void Cleo::forward(Command& cmd) { seekRelative(cmd, true); }
+
+void Cleo::rewind(Command& cmd) { seekRelative(cmd, false); }

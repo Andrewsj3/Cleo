@@ -21,6 +21,9 @@ namespace Cleo {
     void rename(Command&);
     void del(Command&);
     void playlist(Command&);
+    void seek(Command&);
+    void forward(Command&);
+    void rewind(Command&);
     const extern std::flat_map<std::string, std::function<void(Command&)>> commands;
     const extern std::flat_map<std::string, std::string> commandHelp;
     const extern std::vector<std::string> commandList;

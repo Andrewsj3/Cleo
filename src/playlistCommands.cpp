@@ -164,7 +164,8 @@ void Playlist::save(Command& cmd) {
         if (choice == "y" || choice == "Y") {
             output.open(destination);
             output << join(Music::curPlaylist, ",") << '\n';
-            // Make sure to save with LF line ending since this is what the load function expects
+            // Make sure to save with LF line ending since this is what the load function
+            // expects
             std::println("Playlist saved.");
         }
     } else {

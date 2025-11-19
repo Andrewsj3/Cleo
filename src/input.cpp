@@ -161,11 +161,13 @@ void inputThread() {
         }
         Threads::readyForInput = false;
         // Prevent prompt from showing up until commands have finished executing
-        Threads::userInput = std::move(input);
+        Threads::userInput = input;
         std::free((void*)input);
         if (Threads::userInput.length() > 0) {
             if (!existsInHistory(history_list(), Threads::userInput.c_str()))
                 add_history(Threads::userInput.c_str());
+        } else {
+            Threads::readyForInput = true;
         }
     }
 }

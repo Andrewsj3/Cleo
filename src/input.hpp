@@ -4,4 +4,5 @@
 #include <flat_map>
 void inputThread();
 void backgroundThread();
-void parseCmd(Command& cmd, const std::flat_map<std::string, std::function<void(Command&)>>& programCommands);
+void parseCmd(Command& cmd,
+              const std::flat_map<std::string, std::function<void(Command&)>>& programCommands);

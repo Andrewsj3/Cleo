@@ -13,9 +13,9 @@ LDFLAGS = `pkg-config --libs sfml-audio readline`
 MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 DEBUG = 0
 ifeq ($(DEBUG), 1)
-	CXXFLAGS += -ggdb -UNDEBUG -fsanitize=address
+	CXXFLAGS += -ggdb -DNDEBUG -fsanitize=address
 else
-	CXXFLAGS += -DNDEBUG
+	CXXFLAGS += -UNDEBUG
 endif
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/%.hpp
@@ -36,8 +36,8 @@ $(EXE): $(OBJS)
 clean:
 	rm -f $(EXE) $(OBJS)
 
-tidy:
-	clang-tidy $(SOURCES)
+format:
+	clang-format $(SOURCES) -i
 
-.PHONY: clean tidy
+.PHONY: clean format
 .SUFFIXES:

@@ -15,7 +15,8 @@ namespace Music {
     const std::unordered_set<std::string> supportedExtensions{
         ".mp3", ".ogg", ".flac", ".wav", ".aiff",
     };
-    // Taken from the list of formats that SFML supports. Some of the more obscure ones were left out
+    // Taken from the list of formats that SFML supports. Some of the more obscure ones were
+    // left out
     std::vector<std::string> songs{};
     std::vector<std::string> playlists{};
     std::vector<std::string> curPlaylist{};
