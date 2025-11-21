@@ -15,7 +15,7 @@ DEBUG = 0
 ifeq ($(DEBUG), 1)
 	CXXFLAGS += -ggdb -DNDEBUG -fsanitize=address
 else
-	CXXFLAGS += -UNDEBUG
+	CXXFLAGS += -UNDEBUG -O2
 endif
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/%.hpp

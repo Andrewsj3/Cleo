@@ -8,3 +8,5 @@ namespace Threads {
     extern bool readyForInput;
     extern bool helpMode;
 } // namespace Threads
+
+void runThreads();

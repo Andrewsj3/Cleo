@@ -11,6 +11,7 @@
 #include <cmath>
 #include <filesystem>
 #include <flat_map>
+#include <format>
 #include <print>
 #include <regex>
 #include <string>
@@ -118,15 +119,14 @@ void Cleo::play(Command& cmd) {
             matchedSong = match.exactMatch();
             break;
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.",
-                         join(match.matches, ", "));
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
             return;
     }
     if (!Music::music.openFromFile(Music::musicDir / matchedSong)) {
         std::println("A match was found, but the file is in an unsupported format.");
         return;
     }
-    Music::curSong = fs::path(matchedSong).stem();
+    Music::curSong = fs::path{matchedSong}.stem();
     Music::repeats = 0;
     Music::music.play();
 }
@@ -263,8 +263,7 @@ void findHelp(const CommandDefinition& domain, const std::string& topic) {
             std::println("{}", domain.at(match.exactMatch()));
             break;
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.",
-                         join(match.matches, ", "));
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
             break;
     }
 }
@@ -299,12 +298,21 @@ void Cleo::help(Command& cmd) {
             args.append_range(cmd.arguments());
             break;
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.",
-                         join(match.matches, ", "));
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
             return;
     }
     std::string topic{join(args, " ")};
     findHelp(domain, topic);
+}
+
+std::string numAsTimestamp(int time) {
+    auto [elapsedMins, elapsedSecs]{std::div(time, 60)};
+    if (elapsedMins > 60) {
+        int elapsedHours{elapsedMins / 60};
+        elapsedMins %= 60;
+        return std::format("{}:{:02}:{:02}", elapsedHours, elapsedMins, elapsedSecs);
+    }
+    return std::format("{}:{:02}", elapsedMins, elapsedSecs);
 }
 
 void Cleo::time(Command&) {
@@ -312,11 +320,10 @@ void Cleo::time(Command&) {
         std::println("Nothing playing.");
     } else {
         int timeElapsed{(int)Music::music.getPlayingOffset().asSeconds()};
-        auto [elapsedMins, elapsedSecs]{std::div(timeElapsed, 60)};
-        int remaining{(int)Music::music.getDuration().asSeconds() - timeElapsed};
-        auto [remainingMins, remainingSecs]{std::div(remaining, 60)};
-        std::println("{0:}:{1:02} elapsed, {2:}:{3:02} remaining.", elapsedMins, elapsedSecs,
-                     remainingMins, remainingSecs);
+        std::string elapsedTimestamp{numAsTimestamp(timeElapsed)};
+        std::string remainingTimestamp{
+            numAsTimestamp((int)Music::music.getDuration().asSeconds() - timeElapsed)};
+        std::println("{} elapsed, {} remaining.", elapsedTimestamp, remainingTimestamp);
     }
 }
 
@@ -376,15 +383,13 @@ void Cleo::rename(Command& cmd) {
             break;
         case Match::ExactMatch: {
             songToRename = Music::musicDir / match.exactMatch();
-            fs::rename(songToRename,
-                       Music::musicDir / (newName + songToRename.extension().string()));
-            std::string baseOldName{fs::path(songToRename).stem()};
+            fs::rename(songToRename, Music::musicDir / (newName + songToRename.extension().string()));
+            std::string baseOldName{fs::path{songToRename}.stem()};
             std::println("Renamed {} -> {}.", baseOldName, newName);
             break;
         }
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.",
-                         join(match.matches, ", "));
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
             break;
     }
 }
@@ -403,13 +408,12 @@ void Cleo::del(Command& cmd) {
             break;
         case Match::ExactMatch: {
             fs::remove(Music::musicDir / match.exactMatch());
-            std::string baseDelName{fs::path(match.exactMatch()).stem()};
+            std::string baseDelName{fs::path{match.exactMatch()}.stem()};
             std::println("Deleted {}.", baseDelName);
             break;
         }
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.",
-                         join(match.matches, ", "));
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
             break;
     }
 }
@@ -418,9 +422,8 @@ void Cleo::playlist(Command& cmd) {
     if (cmd.arguments().empty()) {
         std::vector<std::string> humanizedSongs{};
         humanizedSongs.resize(Music::curPlaylist.size());
-        std::transform(Music::curPlaylist.cbegin(), Music::curPlaylist.cend(),
-                       humanizedSongs.begin(),
-                       [](const std::string& song) { return fs::path(song).stem(); });
+        std::transform(Music::curPlaylist.cbegin(), Music::curPlaylist.cend(), humanizedSongs.begin(),
+                       [](const std::string& song) { return fs::path{song}.stem(); });
         // We store the extensions to make loading songs easier, but we don't want to show that
         // to the user
         std::println("{}", join(humanizedSongs, ", "));
@@ -441,8 +444,7 @@ int timestampAsNum(const std::string& timestamp) {
         return -1;
     }
     std::reverse(timestampComponents.begin(), timestampComponents.end());
-    timestampComponents.resize(
-        numTimestampComponents); // 3 integers representing hours, minutes, and seconds
+    timestampComponents.resize(numTimestampComponents); // 3 integers representing hours, minutes, and seconds
     for (std::size_t i{0}; i < numTimestampComponents; ++i) {
         if (!timestampComponents[i].empty()) {
             duration += std::stoi(timestampComponents[i]) * (int)std::pow(60, i);

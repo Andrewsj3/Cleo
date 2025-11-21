@@ -6,6 +6,7 @@
 #include <string_view>
 #include <vector>
 std::string join(const std::vector<std::string>&, std::string_view);
+std::string numAsTimestamp(int time);
 
 namespace Cleo {
     void help(Command&);

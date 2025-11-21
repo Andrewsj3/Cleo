@@ -3,11 +3,13 @@
 #include "command.hpp"
 #include "defaultCommands.hpp"
 #include "music.hpp"
+#include <SFML/Audio/Music.hpp>
 #include <algorithm>
 #include <filesystem>
 #include <flat_map>
 #include <fstream>
 #include <iostream>
+#include <ostream>
 #include <print>
 #include <string>
 #include <vector>
@@ -17,16 +19,11 @@ using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 using namespace Cleo;
 namespace fs = std::filesystem;
 const std::vector<std::string> Playlist::commandList{
-    "add",
-    "load",
-    "play",
-    "save",
+    "add", "load", "play", "save", "status",
 };
 const CommandMap Playlist::commands{
-    {"load", Playlist::load},
-    {"play", Playlist::play},
-    {"add", Playlist::add},
-    {"save", Playlist::save},
+    {"load", Playlist::load}, {"play", Playlist::play},     {"add", Playlist::add},
+    {"save", Playlist::save}, {"status", Playlist::status},
 };
 const CommandDefinition Playlist::commandHelp{
     {"load", R"(Usage: playlist load <filename>
@@ -41,6 +38,8 @@ in which case it will loop to the beginning.)"},
     {"add", R"(Usage: playlist add <song>
 Adds the specified song to the end of the current playlist.)"},
     {"commands", join(Playlist::commandList, "\n")},
+    {"status", R"(Shows the current song being played, as well as the previous and next songs if applicable.
+Also displays current time elapsed and total length of playlist.)"},
 };
 
 void playSong(const fs::path& songPath) {
@@ -50,10 +49,14 @@ void playSong(const fs::path& songPath) {
             Music::music.play();
         } else {
             std::println("File is in an unsupported format.");
+            std::print("> ");
         }
     } else {
         std::println("Song not found.");
+        std::print("> ");
     }
+    // We need to print the prompt here otherwise the output will get messed up
+    std::flush(std::cout);
 }
 
 // Reads csv file into playlist. Assumes csv was created by cleo and that it only has 1 line.
@@ -61,6 +64,7 @@ void parsePlaylist(const fs::path& path) {
     std::ifstream file{path};
     std::string curItem{};
     std::vector<std::string> playlist{};
+    sf::Music load{};
     while (std::getline(file, curItem, ',')) {
         if (file.eof()) {
             // Account for dos and unix line endings. This is mainly for compatibility with smp.
@@ -73,9 +77,19 @@ void parsePlaylist(const fs::path& path) {
                 return;
             }
         }
-        playlist.push_back(curItem);
+        if (!Music::songDurations.contains(Music::musicDir / curItem)) {
+            if (load.openFromFile(Music::musicDir / curItem)) {
+                Music::songDurations.insert({Music::musicDir / curItem, load.getDuration().asSeconds()});
+            }
+        }
+        if (!fs::exists(Music::musicDir / curItem)) {
+            std::println("Song not found: {}", (Music::musicDir / curItem).string());
+        } else {
+            playlist.push_back(curItem);
+        }
     }
     Music::curPlaylist = playlist;
+    Music::playlistIdx = 0;
 }
 
 void Playlist::load(Command& cmd) {
@@ -99,8 +113,8 @@ void Playlist::load(Command& cmd) {
             parsePlaylist(playlistPath);
             break;
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.",
-                         join(match.matches, ", "));
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            break;
     }
 }
 
@@ -133,17 +147,15 @@ void Playlist::add(Command& cmd) {
             break;
         case Match::ExactMatch:
             songPath = Music::musicDir / match.exactMatch();
-            std::println("path = {}", songPath.string());
-            if (std::find(Music::curPlaylist.cbegin(), Music::curPlaylist.cend(),
-                          songPath.filename()) != Music::curPlaylist.cend()) {
+            if (std::find(Music::curPlaylist.cbegin(), Music::curPlaylist.cend(), songPath.filename()) !=
+                Music::curPlaylist.cend()) {
                 std::println("Song is already in playlist.");
                 break;
             }
             Music::curPlaylist.push_back(songPath.filename());
             break;
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.",
-                         join(match.matches, ", "));
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
             break;
     }
 }
@@ -174,4 +186,40 @@ void Playlist::save(Command& cmd) {
         std::println("Playlist saved.");
     }
     output.close();
+}
+
+void printPreviousNextSong() {
+    std::string prevSong{"N/A"};
+    std::string nextSong{"N/A"};
+    if (Music::playlistIdx > 1) {
+        prevSong = fs::path{Music::curPlaylist[Music::playlistIdx - 2]}.stem();
+    }
+    if (Music::playlistIdx < Music::curPlaylist.size()) {
+        nextSong = fs::path{Music::curPlaylist[Music::playlistIdx]}.stem();
+    }
+    std::println("Previous song: {}, next song: {}", prevSong, nextSong);
+}
+
+void Playlist::status(Command&) {
+    if (!Music::inPlaylistMode) {
+        std::println("Not playing a playlist.");
+        return;
+    }
+    int totalTime{0};
+    int timeElapsed{0};
+    int thisDuration{};
+    for (std::size_t i{0}; i < Music::curPlaylist.size(); ++i) {
+        thisDuration = Music::songDurations.at(Music::musicDir / Music::curPlaylist[i]);
+        totalTime += thisDuration;
+        if (i < Music::playlistIdx - 1) {
+            timeElapsed += thisDuration;
+        }
+    }
+    timeElapsed += (int)Music::music.getPlayingOffset().asSeconds();
+    printPreviousNextSong();
+    std::println("Currently playing {} ({}/{})", Music::curSong, Music::playlistIdx,
+                 Music::curPlaylist.size());
+    std::println("Total length of playlist: {}", numAsTimestamp(totalTime));
+    std::println("Total time elapsed: {} ({:.1f}%)", numAsTimestamp(timeElapsed),
+                 ((float)timeElapsed / (float)totalTime) * 100);
 }

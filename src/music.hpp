@@ -2,6 +2,7 @@
 
 #include "SFML/Audio/Music.hpp"
 #include <filesystem>
+#include <map>
 #include <string>
 #include <unordered_set>
 
@@ -13,6 +14,7 @@ namespace Music {
     extern std::vector<std::string> songs;
     extern std::vector<std::string> playlists;
     extern std::vector<std::string> curPlaylist;
+    extern std::map<std::filesystem::path, int> songDurations;
     extern int repeats;
     extern std::string curSong;
     extern std::size_t playlistIdx;
@@ -20,4 +22,5 @@ namespace Music {
 } // namespace Music
 
 void updateSongs();
+void writeCache();
 void updatePlaylists();

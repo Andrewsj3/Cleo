@@ -6,8 +6,7 @@
 #include <string>
 
 void lower(std::string& str) {
-    std::transform(str.cbegin(), str.cend(), str.begin(),
-                   [](char c) { return std::tolower(c); });
+    std::transform(str.cbegin(), str.cend(), str.begin(), [](char c) { return std::tolower(c); });
 }
 
 Command::Command(const std::vector<std::string>& components) {
@@ -24,8 +23,7 @@ const std::vector<std::string>& Command::arguments() const { return mArguments; 
 
 void Command::shift() {
     if (mArguments.empty()) {
-        throw std::out_of_range(
-            "Cannot shift command because there are no remaining arguments");
+        throw std::out_of_range("Cannot shift command because there are no remaining arguments");
     }
     mFunction = mArguments.front();
     lower(mFunction);
