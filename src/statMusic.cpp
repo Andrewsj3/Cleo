@@ -5,7 +5,7 @@
 #include <thread>
 
 namespace fs = std::filesystem;
-void addWatchPath(std::flat_map<fs::path, fs::file_time_type>& directoryWatch, const fs::path& path) {
+static void addWatchPath(std::flat_map<fs::path, fs::file_time_type>& directoryWatch, const fs::path& path) {
     directoryWatch.emplace(path, fs::last_write_time(path));
 }
 

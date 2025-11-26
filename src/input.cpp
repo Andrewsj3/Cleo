@@ -23,7 +23,7 @@
 
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 
-std::vector<Command> parseString(std::string_view input) {
+static std::vector<Command> parseString(std::string_view input) {
     bool isQuoted{false};
     std::vector<Command> commands{};
     std::vector<std::string> thisCommand{};
@@ -60,7 +60,7 @@ std::vector<Command> parseString(std::string_view input) {
     return commands;
 }
 
-bool checkInput() { return !Threads::userInput.empty(); }
+static bool checkInput() { return !Threads::userInput.empty(); }
 
 void parseCmd(Command& cmd, const CommandMap& commands) {
     std::string match{};
@@ -83,7 +83,7 @@ void parseCmd(Command& cmd, const CommandMap& commands) {
     }
 }
 
-void executeCmds(const std::vector<Command>& commands) {
+static void executeCmds(const std::vector<Command>& commands) {
     for (auto cmd : commands) {
         if (Threads::helpMode) {
             // Note that this can change between commands, so some commands may be executed in
@@ -94,7 +94,8 @@ void executeCmds(const std::vector<Command>& commands) {
         }
     }
 }
-bool existsInHistory(HIST_ENTRY** history, const char* str) {
+
+static bool existsInHistory(HIST_ENTRY** history, const char* str) {
     if (history == NULL) {
         return false;
     }
@@ -107,7 +108,7 @@ bool existsInHistory(HIST_ENTRY** history, const char* str) {
     return false;
 }
 
-bool shouldRepeat() {
+static bool shouldRepeat() {
     if (Music::music.isLooping()) {
         return false;
     }
@@ -128,7 +129,7 @@ bool shouldRepeat() {
     return false;
 }
 
-bool shouldAdvance() {
+static bool shouldAdvance() {
     if (Music::playlistIdx == 0 || !Music::inPlaylistMode ||
         Music::music.getStatus() == sf::Music::Status::Playing || Music::music.isLooping()) {
         // Note the looping check is redundant, but we put it in to indicate looping takes

@@ -157,12 +157,12 @@ void Cleo::stop(Command&) {
 
 void Cleo::exit(Command&) { Threads::running = false; }
 
-void getVolume() {
+static void getVolume() {
     float curVolume{Music::music.getVolume()};
     std::println("Volume: {:.1f}%", curVolume);
 }
 
-void setVolume(const std::string& volume) {
+static void setVolume(const std::string& volume) {
     float newVolume{};
     try {
         newVolume = std::stof(volume);
@@ -226,7 +226,7 @@ std::string join(const std::vector<std::string>& vec, std::string_view delim) {
     return joined;
 }
 
-std::vector<std::string> split(const std::string& str, std::string_view delim) {
+static std::vector<std::string> split(const std::string& str, std::string_view delim) {
     std::size_t curPos{0};
     std::size_t endPos{0};
     std::size_t delimLen{delim.length()};
@@ -241,7 +241,7 @@ std::vector<std::string> split(const std::string& str, std::string_view delim) {
     return ret;
 }
 
-void findHelp(const CommandDefinition& domain, const std::string& topic) {
+static void findHelp(const CommandDefinition& domain, const std::string& topic) {
     if (topic == "quit") {
         if (Threads::helpMode) {
             Threads::helpMode = false;
@@ -332,7 +332,7 @@ void Cleo::loop(Command&) {
     std::println("Looping: {}.", Music::music.isLooping() ? "enabled" : "disabled");
 }
 
-bool setRepeats(const std::string& repeats) {
+static bool setRepeats(const std::string& repeats) {
     int newRepeats{};
     try {
         newRepeats = std::stoi(repeats);
@@ -351,6 +351,7 @@ bool setRepeats(const std::string& repeats) {
         return false;
     }
 }
+
 void Cleo::repeat(Command& cmd) {
     bool successful{true};
     if (Music::curSong == "") {
@@ -421,8 +422,9 @@ void Cleo::del(Command& cmd) {
 void Cleo::playlist(Command& cmd) {
     if (cmd.arguments().empty()) {
         std::vector<std::string> humanizedSongs{};
-        humanizedSongs.resize(Music::curPlaylist.size());
-        std::transform(Music::curPlaylist.cbegin(), Music::curPlaylist.cend(), humanizedSongs.begin(),
+        const std::vector<std::string>& playlist{getPlaylist()};
+        humanizedSongs.resize(playlist.size());
+        std::transform(playlist.cbegin(), playlist.cend(), humanizedSongs.begin(),
                        [](const std::string& song) { return fs::path{song}.stem(); });
         // We store the extensions to make loading songs easier, but we don't want to show that
         // to the user
@@ -433,14 +435,14 @@ void Cleo::playlist(Command& cmd) {
     parseCmd(cmd, Playlist::commands);
 }
 
-int timestampAsNum(const std::string& timestamp) {
+static int timestampAsNum(const std::string& timestamp) {
     static const std::regex timestampFormat{R"(^([0-9]?[1-9]:)?[0-5]?[0-9]:[0-5][0-9]$)"};
     int duration{};
     std::vector<std::string> timestampComponents{};
     constexpr int numTimestampComponents{3};
     if (std::regex_match(timestamp, timestampFormat)) {
         timestampComponents = split(timestamp, ":");
-    } else {
+       } else {
         return -1;
     }
     std::reverse(timestampComponents.begin(), timestampComponents.end());
@@ -453,7 +455,7 @@ int timestampAsNum(const std::string& timestamp) {
     return duration;
 }
 
-sf::Time getTime(Command& cmd) {
+static sf::Time getTime(Command& cmd) {
     std::size_t length{};
     std::string time{cmd.nextArg()};
     int timestamp{};
@@ -468,7 +470,7 @@ sf::Time getTime(Command& cmd) {
     return sf::seconds((float)timestamp);
 }
 
-void seekRelative(Command& cmd, bool forward) {
+static void seekRelative(Command& cmd, bool forward) {
     sf::Time duration{getTime(cmd)};
     if (duration.asSeconds() < 0) {
         std::println("Invalid duration or timestamp given. See 'help timestamp' for more.");

@@ -14,13 +14,16 @@ namespace Music {
     extern std::vector<std::string> songs;
     extern std::vector<std::string> playlists;
     extern std::vector<std::string> curPlaylist;
+    extern std::vector<std::string> shuffledPlaylist;
     extern std::map<std::filesystem::path, int> songDurations;
     extern int repeats;
     extern std::string curSong;
     extern std::size_t playlistIdx;
     extern bool inPlaylistMode;
+    extern bool isShuffled;
 } // namespace Music
 
 void updateSongs();
 void writeCache();
 void updatePlaylists();
+const std::vector<std::string>& getPlaylist();

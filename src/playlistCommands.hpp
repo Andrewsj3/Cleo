@@ -7,6 +7,7 @@ namespace Cleo::Playlist {
     void play(Command&);
     void add(Command&);
     void save(Command&);
+    void shuffle(Command&);
     void status(Command&);
     const extern std::flat_map<std::string, std::function<void(Command&)>> commands;
     const extern std::flat_map<std::string, std::string> commandHelp;

@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <string>
 
-void lower(std::string& str) {
+static void lower(std::string& str) {
     std::transform(str.cbegin(), str.cend(), str.begin(), [](char c) { return std::tolower(c); });
 }
 

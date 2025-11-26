@@ -9,8 +9,8 @@
 #include <flat_map>
 #include <fstream>
 #include <iostream>
-#include <ostream>
 #include <print>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -18,13 +18,16 @@ using CommandDefinition = std::flat_map<std::string, std::string>;
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 using namespace Cleo;
 namespace fs = std::filesystem;
+static std::random_device rd{std::random_device{}};
+static std::default_random_engine rng{std::default_random_engine{rd()}};
 const std::vector<std::string> Playlist::commandList{
-    "add", "load", "play", "save", "status",
+    "add", "load", "play", "save", "shuffle", "status",
 };
 const CommandMap Playlist::commands{
     {"load", Playlist::load}, {"play", Playlist::play},     {"add", Playlist::add},
-    {"save", Playlist::save}, {"status", Playlist::status},
+    {"save", Playlist::save}, {"status", Playlist::status}, {"shuffle", Playlist::shuffle},
 };
+
 const CommandDefinition Playlist::commandHelp{
     {"load", R"(Usage: playlist load <filename>
 Loads the songs in <filename> into the current playlist.
@@ -42,7 +45,7 @@ Adds the specified song to the end of the current playlist.)"},
 Also displays current time elapsed and total length of playlist.)"},
 };
 
-void playSong(const fs::path& songPath) {
+static void playSong(const fs::path& songPath) {
     if (fs::exists(songPath)) {
         if (Music::music.openFromFile(songPath)) {
             Music::curSong = songPath.filename().stem();
@@ -60,7 +63,7 @@ void playSong(const fs::path& songPath) {
 }
 
 // Reads csv file into playlist. Assumes csv was created by cleo and that it only has 1 line.
-void parsePlaylist(const fs::path& path) {
+static void parsePlaylist(const fs::path& path) {
     std::ifstream file{path};
     std::string curItem{};
     std::vector<std::string> playlist{};
@@ -88,7 +91,7 @@ void parsePlaylist(const fs::path& path) {
             playlist.push_back(curItem);
         }
     }
-    Music::curPlaylist = playlist;
+    Music::shuffledPlaylist = Music::curPlaylist = playlist;
     Music::playlistIdx = 0;
 }
 
@@ -119,16 +122,17 @@ void Playlist::load(Command& cmd) {
 }
 
 void Playlist::play(Command&) {
-    if (Music::curPlaylist.empty()) {
+    const std::vector<std::string>& playlist{getPlaylist()};
+    if (playlist.empty()) {
         std::println("Playlist is empty.");
         return;
     }
-    if (Music::playlistIdx == Music::curPlaylist.size()) {
+    if (Music::playlistIdx == playlist.size()) {
         Music::playlistIdx = 0;
     }
     Music::inPlaylistMode = true;
     Music::repeats = 0;
-    playSong(Music::musicDir / Music::curPlaylist.at(Music::playlistIdx));
+    playSong(Music::musicDir / playlist.at(Music::playlistIdx));
     // We use this instead of Cleo::play since we don't have an instance of Command
     ++Music::playlistIdx;
 }
@@ -141,18 +145,19 @@ void Playlist::add(Command& cmd) {
     std::string song{cmd.nextArg()};
     AutoMatch match{Music::songs, song};
     fs::path songPath{};
+    const std::vector<std::string>& playlist{getPlaylist()};
     switch (match.matchType) {
         case Match::NoMatch:
             std::println("Song not found.");
             break;
         case Match::ExactMatch:
             songPath = Music::musicDir / match.exactMatch();
-            if (std::find(Music::curPlaylist.cbegin(), Music::curPlaylist.cend(), songPath.filename()) !=
-                Music::curPlaylist.cend()) {
+            if (std::find(playlist.cbegin(), playlist.cend(), songPath.filename()) != playlist.cend()) {
                 std::println("Song is already in playlist.");
                 break;
             }
             Music::curPlaylist.push_back(songPath.filename());
+            Music::shuffledPlaylist.push_back(songPath.filename());
             break;
         case Match::MultipleMatch:
             std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
@@ -188,14 +193,15 @@ void Playlist::save(Command& cmd) {
     output.close();
 }
 
-void printPreviousNextSong() {
+static void printPreviousNextSong() {
     std::string prevSong{"N/A"};
     std::string nextSong{"N/A"};
+    const std::vector<std::string>& playlist{getPlaylist()};
     if (Music::playlistIdx > 1) {
-        prevSong = fs::path{Music::curPlaylist[Music::playlistIdx - 2]}.stem();
+        prevSong = fs::path{playlist[Music::playlistIdx - 2]}.stem();
     }
-    if (Music::playlistIdx < Music::curPlaylist.size()) {
-        nextSong = fs::path{Music::curPlaylist[Music::playlistIdx]}.stem();
+    if (Music::playlistIdx < playlist.size()) {
+        nextSong = fs::path{playlist[Music::playlistIdx]}.stem();
     }
     std::println("Previous song: {}, next song: {}", prevSong, nextSong);
 }
@@ -208,8 +214,9 @@ void Playlist::status(Command&) {
     int totalTime{0};
     int timeElapsed{0};
     int thisDuration{};
-    for (std::size_t i{0}; i < Music::curPlaylist.size(); ++i) {
-        thisDuration = Music::songDurations.at(Music::musicDir / Music::curPlaylist[i]);
+    const std::vector<std::string>& playlist{getPlaylist()};
+    for (std::size_t i{0}; i < playlist.size(); ++i) {
+        thisDuration = Music::songDurations.at(Music::musicDir / playlist[i]);
         totalTime += thisDuration;
         if (i < Music::playlistIdx - 1) {
             timeElapsed += thisDuration;
@@ -217,9 +224,24 @@ void Playlist::status(Command&) {
     }
     timeElapsed += (int)Music::music.getPlayingOffset().asSeconds();
     printPreviousNextSong();
-    std::println("Currently playing {} ({}/{})", Music::curSong, Music::playlistIdx,
-                 Music::curPlaylist.size());
+    std::println("Currently playing {} ({}/{})", Music::curSong, Music::playlistIdx, playlist.size());
     std::println("Total length of playlist: {}", numAsTimestamp(totalTime));
     std::println("Total time elapsed: {} ({:.1f}%)", numAsTimestamp(timeElapsed),
                  ((float)timeElapsed / (float)totalTime) * 100);
+}
+
+void Playlist::shuffle(Command&) {
+    if (Music::curPlaylist.empty()) {
+        std::println("Empty playlist cannot be shuffled.");
+        return;
+    }
+    if (Music::curPlaylist.size() == 1) {
+        std::println("Cannot shuffle playlist with only one song.");
+        return;
+    }
+    Music::isShuffled = !Music::isShuffled;
+    if (Music::isShuffled) {
+        std::ranges::shuffle(Music::shuffledPlaylist, rng);
+    }
+    std::println("Shuffle: {}.", Music::isShuffled ? "on" : "off");
 }

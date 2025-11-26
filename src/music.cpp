@@ -13,7 +13,8 @@ fs::path getHome() { return std::getenv("HOME"); }
 static const fs::path cacheDir{getHome() / ".cache" / "cleo"};
 static const fs::path cachePath{cacheDir / "cache"};
 static constexpr int cacheSize{1000};
-std::map<fs::path, int> readCache() {
+
+static std::map<fs::path, int> readCache() {
     if (!fs::exists(cachePath)) {
         fs::create_directories(cacheDir);
         std::ofstream{cachePath}.flush();
@@ -58,11 +59,13 @@ namespace Music {
     std::vector<std::string> songs{};
     std::vector<std::string> playlists{};
     std::vector<std::string> curPlaylist{};
+    std::vector<std::string> shuffledPlaylist{};
     std::map<fs::path, int> songDurations{readCache()};
     int repeats{};
     std::string curSong{};
     std::size_t playlistIdx{};
     bool inPlaylistMode{false};
+    bool isShuffled{false};
 } // namespace Music
 
 void updateSongs() {
@@ -91,4 +94,8 @@ void updatePlaylists() {
         newPlaylists.push_back(playlist);
     }
     Music::playlists = newPlaylists;
+}
+
+const std::vector<std::string>& getPlaylist() {
+    return Music::isShuffled ? Music::shuffledPlaylist : Music::curPlaylist;
 }
