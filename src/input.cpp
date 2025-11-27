@@ -131,7 +131,7 @@ static bool shouldRepeat() {
 
 static bool shouldAdvance() {
     if (Music::playlistIdx == 0 || !Music::inPlaylistMode ||
-        Music::music.getStatus() == sf::Music::Status::Playing || Music::music.isLooping()) {
+        Music::music.getStatus() != sf::Music::Status::Stopped || Music::music.isLooping()) {
         // Note the looping check is redundant, but we put it in to indicate looping takes
         // precedence over advancing the playlist
         return false;

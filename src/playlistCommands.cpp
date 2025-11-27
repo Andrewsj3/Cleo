@@ -43,6 +43,8 @@ Adds the specified song to the end of the current playlist.)"},
     {"commands", join(Playlist::commandList, "\n")},
     {"status", R"(Shows the current song being played, as well as the previous and next songs if applicable.
 Also displays current time elapsed and total length of playlist.)"},
+    {"shuffle", R"(Toggles between the shuffled playlist and the normal playlist. Note everytime shuffle is
+turned on, the order changes.)"},
 };
 
 static void playSong(const fs::path& songPath) {

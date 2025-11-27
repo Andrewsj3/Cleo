@@ -471,6 +471,10 @@ static sf::Time getTime(Command& cmd) {
 }
 
 static void seekRelative(Command& cmd, bool forward) {
+    if (cmd.argCount() != 1) {
+        std::println("Expected a timestamp or duration in seconds.");
+        return;
+    }
     sf::Time duration{getTime(cmd)};
     if (duration.asSeconds() < 0) {
         std::println("Invalid duration or timestamp given. See 'help timestamp' for more.");
