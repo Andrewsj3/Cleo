@@ -4,15 +4,10 @@
 #include "defaultCommands.hpp"
 #include "music.hpp"
 #include <SFML/Audio/Music.hpp>
-#include <algorithm>
-#include <filesystem>
-#include <flat_map>
 #include <fstream>
 #include <iostream>
 #include <print>
 #include <random>
-#include <string>
-#include <vector>
 
 using CommandDefinition = std::flat_map<std::string, std::string>;
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
@@ -33,16 +28,16 @@ const CommandDefinition Playlist::commandHelp{
 Loads the songs in <filename> into the current playlist.
 Playlists are stored in ~/music/playlists by default.)"},
     {"save", R"(Usage: playlist save <filename>
-Saves the current playlist to the file chosen. Note that it automatically adds the csv extension,
-so you don't need to specify one yourself.)"},
+Saves the current playlist to the file chosen. Note that it automatically adds the csv
+extension, so you don't need to specify one yourself.)"},
     {"play", R"(Starts playing the playlist and advances the song index by 1.
-This means calling `playlist play` again skips to the next song, unless the current song is the last song,
-in which case it will loop to the beginning.)"},
+This means calling `playlist play` again skips to the next song, unless the current song
+is the last song, in which case it will loop to the beginning.)"},
     {"add", R"(Usage: playlist add <song>
 Adds the specified song to the end of the current playlist.)"},
     {"commands", join(Playlist::commandList, "\n")},
-    {"status", R"(Shows the current song being played, as well as the previous and next songs if applicable.
-Also displays current time elapsed and total length of playlist.)"},
+    {"status", R"(Shows the current song being played, as well as the previous and next
+songs if applicable. Also displays current time elapsed and total length of playlist.)"},
     {"shuffle", R"(Toggles between the shuffled playlist and the normal playlist. Note everytime shuffle is
 turned on, the order changes.)"},
 };

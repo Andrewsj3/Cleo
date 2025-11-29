@@ -1,12 +1,7 @@
 #include "music.hpp"
 #include <SFML/Audio/Music.hpp>
 #include <SFML/System/Time.hpp>
-#include <cstddef>
-#include <filesystem>
 #include <fstream>
-#include <map>
-#include <string>
-#include <vector>
 
 namespace fs = std::filesystem;
 fs::path getHome() { return std::getenv("HOME"); }
@@ -72,7 +67,7 @@ void updateSongs() {
     std::string filename{};
     std::vector<std::string> newSongs{};
     sf::Music load{};
-    for (const auto& dirEntry : fs::directory_iterator(Music::musicDir)) {
+    for (const auto& dirEntry : fs::directory_iterator{Music::musicDir}) {
         if (!dirEntry.is_regular_file() ||
             !Music::supportedExtensions.contains(dirEntry.path().extension())) {
             continue;
@@ -86,7 +81,7 @@ void updateSongs() {
 void updatePlaylists() {
     std::string playlist{};
     std::vector<std::string> newPlaylists{};
-    for (const auto& dirEntry : fs::directory_iterator(Music::playlistDir)) {
+    for (const auto& dirEntry : fs::directory_iterator{Music::playlistDir}) {
         if (!dirEntry.is_regular_file()) {
             continue;
         }

@@ -1,8 +1,6 @@
 #include "autocomplete.hpp"
 #include <algorithm>
-#include <string>
-#include <string_view>
-#include <vector>
+
 const std::string AutoMatch::exactMatch() {
     if (matchType == Match::NoMatch || matchType == Match::MultipleMatch) {
         return "";

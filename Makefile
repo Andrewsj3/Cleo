@@ -8,7 +8,7 @@ SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
 CXXSTD = -std=c++23
 CXXFLAGS = $(CXXSTD)
-CXXFLAGS += -Wall -Wextra -Wpedantic -Wformat -Wextra -Weffc++ -Wconversion
+CXXFLAGS += -Wall -Wextra -Wpedantic -Wformat -Weffc++ -Wconversion -Wunused-function
 LDFLAGS = `pkg-config --libs sfml-audio readline`
 MAKEFLAGS += --no-builtin-rules --no-builtin-variables
 DEBUG = 0

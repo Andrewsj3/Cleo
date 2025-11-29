@@ -1,9 +1,7 @@
 #include "command.hpp"
 #include <algorithm>
 #include <cassert>
-#include <cstddef>
 #include <stdexcept>
-#include <string>
 
 static void lower(std::string& str) {
     std::transform(str.cbegin(), str.cend(), str.begin(), [](char c) { return std::tolower(c); });

@@ -7,16 +7,10 @@
 #include "threads.hpp"
 #include <SFML/Audio/Music.hpp>
 #include <SFML/System/Time.hpp>
-#include <algorithm>
 #include <cmath>
-#include <filesystem>
-#include <flat_map>
-#include <format>
+#include <fstream>
 #include <print>
 #include <regex>
-#include <string>
-#include <string_view>
-#include <vector>
 using CommandDefinition = std::flat_map<std::string, std::string>;
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 // Note this definition means each command has the same signature, even though some commands
@@ -45,8 +39,8 @@ You can also type the first part of the song and Cleo will try to autocomplete i
     {"pause", "Toggles whether the music should be paused or not."},
     {"exit", "Exits Cleo."},
     {"volume", R"(Usage: volume [newVolume]
-With no arguments, shows the current volume.
-Otherwise, sets the new volume provided it is between 0 and 100.)"},
+With no arguments, shows the current volume. Otherwise, sets the new volume provided
+it is between 0 and 100.)"},
     {"help", "Shows how commands work and how you can use Cleo."},
     {"commands", join(Cleo::commandList, "\n")},
     {"time", "Shows the current song's elapsed time and remaining time."},
@@ -55,10 +49,10 @@ Otherwise, sets the new volume provided it is between 0 and 100.)"},
 By default, repeats the song once.
 Otherwise, repeats the song the given number of times provided it is at least 0.)"},
     {"rename", R"(Usage: rename <oldName> <newName>
-Renames a song in the music directory (autocomplete is supported). Note the song
-must be in a supported format (see 'help formats') or it will fail. The new song will have
-the same extension as the original, so don't add an extension yourself. THIS DOES NOT
-CHECK IF A SONG WILL BE OVERWRITTEN.)"},
+Renames a song in the music directory (autocomplete is supported). This also applies to any
+playlists with this song. Note the song must be in a supported format (see 'help formats')
+or it will fail. The new song will have the same extension as the original, so don't
+add an extension yourself. THIS DOES NOT CHECK IF A SONG WILL BE OVERWRITTEN.)"},
     {"formats", R"(Supported formats:
 mp3
 ogg
@@ -66,13 +60,11 @@ flac
 wav
 aiff)"},
     {"delete", R"(Usage: delete <songName>
-Deletes a song from the music directory. Like `rename`, the song must be in a
-supported format or it will not be deleted.)"},
-    {"autocomplete",
-     R"(When typing a song, file, or command, you can type the first few characters
-as long as it doesn't match anything else, e.g.
-`l` doesn't work because it matches both `list` and `loop`.
-`li` works because it only matches list.)"},
+Deletes a song from the music directory. Like `rename`, the song must be in a supported
+format or it will not be deleted. This will also remove the song from all playlists.)"},
+    {"autocomplete", R"(When typing a song, file, or command, you can type the first few
+characters as long as it doesn't match anything else, e.g. `l` doesn't work because it
+matches both `list` and `loop`. `li` works because it only matches list.)"},
     {"playlist", R"(Usage: playlist [subcommand] [argument]
 This allows you to interact with the playlist in various ways.
 If no subcommand is specified, it will show all songs in the playlist.
@@ -369,6 +361,45 @@ void Cleo::repeat(Command& cmd) {
     }
 }
 
+static bool playlistFromCsv(const fs::path& playlistPath, std::vector<std::string>& playlist) {
+    std::ifstream file{playlistPath};
+    std::string curItem{};
+    while (std::getline(file, curItem, ',')) {
+        if (file.eof()) {
+            // Account for dos and unix line endings. This is mainly for compatibility with smp.
+            if (curItem.ends_with("\r\n")) {
+                curItem.erase(curItem.length() - 2, 2);
+            } else if (curItem.ends_with("\n")) {
+                curItem.erase(curItem.length() - 1, 1);
+            } else {
+                std::println("Unknown line ending encountered when parsing playlist.");
+                return false;
+            }
+        }
+        playlist.push_back(curItem);
+    }
+    file.close();
+    return true;
+}
+
+static void renameInPlaylist(const fs::path& playlistPath, std::string_view song, std::string_view newName) {
+    std::vector<std::string> playlist{};
+    if (!playlistFromCsv(playlistPath, playlist)) {
+        return;
+    }
+    std::ofstream file;
+    std::replace(playlist.begin(), playlist.end(), song, newName);
+    file.open(playlistPath);
+    file << join(playlist, ",") << '\n';
+    file.close();
+}
+
+static void renameSongInPlaylists(std::string_view song, std::string_view newName) {
+    for (const auto& playlist : fs::directory_iterator{Music::playlistDir}) {
+        renameInPlaylist(playlist.path(), song, newName);
+    }
+}
+
 void Cleo::rename(Command& cmd) {
     if (cmd.argCount() != 2) {
         std::println("Expected an old name and a new name.");
@@ -384,7 +415,13 @@ void Cleo::rename(Command& cmd) {
             break;
         case Match::ExactMatch: {
             songToRename = Music::musicDir / match.exactMatch();
-            fs::rename(songToRename, Music::musicDir / (newName + songToRename.extension().string()));
+            fs::path renamedSong{newName + songToRename.extension().string()};
+            fs::rename(songToRename, Music::musicDir / renamedSong);
+            renameSongInPlaylists(match.exactMatch(), renamedSong.string());
+            std::replace(Music::curPlaylist.begin(), Music::curPlaylist.end(), match.exactMatch(),
+                         renamedSong.string());
+            std::replace(Music::shuffledPlaylist.begin(), Music::shuffledPlaylist.end(), match.exactMatch(),
+                         renamedSong.string());
             std::string baseOldName{fs::path{songToRename}.stem()};
             std::println("Renamed {} -> {}.", baseOldName, newName);
             break;
@@ -392,6 +429,25 @@ void Cleo::rename(Command& cmd) {
         case Match::MultipleMatch:
             std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
             break;
+    }
+}
+
+static void removeFromPlaylist(const fs::path& playlistPath, std::string_view song) {
+    std::vector<std::string> playlist{};
+    if (!playlistFromCsv(playlistPath, playlist)) {
+        return;
+    }
+    std::ofstream outfile;
+    if (std::erase(playlist, song)) {
+        outfile.open(playlistPath);
+        outfile << join(playlist, ",") << '\n';
+    }
+    outfile.close();
+}
+
+static void removeSongFromPlaylists(std::string_view song) {
+    for (const auto& playlist : fs::directory_iterator{Music::playlistDir}) {
+        removeFromPlaylist(playlist.path(), song);
     }
 }
 
@@ -409,6 +465,9 @@ void Cleo::del(Command& cmd) {
             break;
         case Match::ExactMatch: {
             fs::remove(Music::musicDir / match.exactMatch());
+            std::erase(Music::curPlaylist, match.exactMatch());
+            std::erase(Music::shuffledPlaylist, match.exactMatch());
+            removeSongFromPlaylists(match.exactMatch());
             std::string baseDelName{fs::path{match.exactMatch()}.stem()};
             std::println("Deleted {}.", baseDelName);
             break;
@@ -442,7 +501,7 @@ static int timestampAsNum(const std::string& timestamp) {
     constexpr int numTimestampComponents{3};
     if (std::regex_match(timestamp, timestampFormat)) {
         timestampComponents = split(timestamp, ":");
-       } else {
+    } else {
         return -1;
     }
     std::reverse(timestampComponents.begin(), timestampComponents.end());

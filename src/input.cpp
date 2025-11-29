@@ -6,14 +6,8 @@
 #include "playlistCommands.hpp"
 #include "threads.hpp"
 #include <SFML/Audio/Music.hpp>
-#include <cstddef>
-#include <cstring>
-#include <flat_map>
 #include <print>
-#include <string>
-#include <string_view>
 #include <thread>
-#include <vector>
 #if defined(__unix)
 #include "readline/history.h"
 #include "readline/readline.h"
