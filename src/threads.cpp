@@ -16,8 +16,7 @@ void runThreads() {
     std::thread inputThreadObj{inputThread};
     std::thread backgroundThreadObj{backgroundThread};
 
-    statThreadObj.detach();
-    // Detach is needed for program to exit immediately at user's request
+    statThreadObj.join();
     inputThreadObj.join();
     backgroundThreadObj.join();
 }

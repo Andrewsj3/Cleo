@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
-std::string join(const std::vector<std::string>&, std::string_view);
+std::string join(const std::vector<std::string>& vec, std::string_view delim);
 std::string numAsTimestamp(int time);
 
 namespace Cleo {

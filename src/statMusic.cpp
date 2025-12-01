@@ -2,8 +2,10 @@
 #include "threads.hpp"
 #include <print>
 #include <sys/inotify.h>
+#include <thread>
 
 void monitorChanges() {
+    using namespace std::chrono_literals;
     int fd{inotify_init1(IN_NONBLOCK)};
     if (fd == -1) {
         std::println(
@@ -28,6 +30,7 @@ void monitorChanges() {
         if (!Threads::running) [[unlikely]] {
             return;
         }
+        std::this_thread::sleep_for(30ms);
         size = read(fd, buf, sizeof(buf));
         if (size <= 0) {
             continue;

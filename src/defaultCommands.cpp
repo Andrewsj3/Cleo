@@ -142,6 +142,7 @@ void Cleo::stop(Command&) {
     if (Music::music.getStatus() == sf::Music::Status::Playing) {
         Music::inPlaylistMode = false;
         Music::music.stop();
+        Music::curSong = "";
     } else {
         std::println("Nothing playing.");
     }
@@ -205,14 +206,12 @@ void Cleo::pause(Command&) {
 std::string join(const std::vector<std::string>& vec, std::string_view delim) {
     if (vec.size() == 0) {
         return "";
-    } else if (vec.size() == 1) {
-        return vec.at(0);
     }
-    std::string joined{};
-    for (std::vector<std::string>::const_iterator it = vec.begin(); it != vec.end(); ++it) {
-        joined += *it;
-        if (it != vec.end() - 1) {
+    std::string joined{vec.at(0)};
+    for (std::vector<std::string>::const_iterator it = vec.begin() + 1; it != vec.end(); ++it) {
+        if (!(*it).empty()) {
             joined += delim;
+            joined += *it;
         }
     }
     return joined;

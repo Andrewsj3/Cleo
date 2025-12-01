@@ -8,6 +8,7 @@
 #include <iostream>
 #include <print>
 #include <random>
+#include <regex>
 
 using CommandDefinition = std::flat_map<std::string, std::string>;
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
@@ -16,11 +17,12 @@ namespace fs = std::filesystem;
 static std::random_device rd{std::random_device{}};
 static std::default_random_engine rng{std::default_random_engine{rd()}};
 const std::vector<std::string> Playlist::commandList{
-    "add", "load", "play", "save", "shuffle", "status",
+    "add", "find", "load", "play", "save", "shuffle", "status",
 };
 const CommandMap Playlist::commands{
     {"load", Playlist::load}, {"play", Playlist::play},     {"add", Playlist::add},
     {"save", Playlist::save}, {"status", Playlist::status}, {"shuffle", Playlist::shuffle},
+    {"find", Playlist::find},
 };
 
 const CommandDefinition Playlist::commandHelp{
@@ -40,7 +42,11 @@ Adds the specified song to the end of the current playlist.)"},
 songs if applicable. Also displays current time elapsed and total length of playlist.)"},
     {"shuffle", R"(Toggles between the shuffled playlist and the normal playlist. Note everytime shuffle is
 turned on, the order changes.)"},
-};
+    {"find", R"(Usage: playlist find [song]|[index]
+Prints the song's position in the playlist, as well as the previous and next song if applicable.
+It also shows the previous 5 songs and the next 5 songs with the current song in bold and underline.
+If an index is given, it prints the song at the given index in the playlist. If nothing is given,
+it defaults to the current song being played.)"}};
 
 static void playSong(const fs::path& songPath) {
     if (fs::exists(songPath)) {
@@ -241,4 +247,96 @@ void Playlist::shuffle(Command&) {
         std::ranges::shuffle(Music::shuffledPlaylist, rng);
     }
     std::println("Shuffle: {}.", Music::isShuffled ? "on" : "off");
+}
+
+std::string numAsPosition(long num) {
+    std::string numStr{std::to_string(num)};
+    static const std::regex thSpecialCase{R"(^\d*1[123]$)"};
+    // Account for 11th, 12th, 13th, etc.
+    if (std::regex_match(numStr, thSpecialCase)) {
+        return numStr + "th";
+    } else if (numStr.ends_with("1")) {
+        return numStr + "st";
+    } else if (numStr.ends_with("2")) {
+        return numStr + "nd";
+    } else if (numStr.ends_with("3")) {
+        return numStr + "rd";
+    } else {
+        return numStr + "th";
+    }
+}
+
+static void filterAndPrintSongs(const std::vector<std::string>& playlist,
+                                std::vector<std::string>::const_iterator iter, std::string_view song) {
+    constexpr std::size_t maxSongs{11}; // 5 preceding the song, 5 after it, plus the song itself
+    std::vector<std::string> songs(maxSongs);
+    long distFromStart{std::distance(playlist.begin(), iter)};
+    long distFromEnd{std::distance(iter, playlist.end()) - 1};
+    // For some reason we need to subtract one or it will try copying elements beyond the end
+    long left{std::min(5L, distFromStart)};
+    long right{std::min(5L, distFromEnd)};
+    // Bounds checking to ensure we copy elements safely
+    std::copy_n(iter - left, left + right + 1, songs.begin());
+    auto target = std::find(songs.begin(), songs.end(), song);
+    std::transform(songs.cbegin(), songs.cend(), songs.begin(),
+                   [](std::string song) { return fs::path{song}.stem(); });
+    *target = std::format("\x1b[4m\x1b[1m{}\x1b[0m", *target); // bold and underline
+    std::print("{} is {} in the playlist, ", fs::path{song}.stem().string(),
+               numAsPosition(distFromStart + 1));
+    if (distFromStart == 0) {
+        std::string before{fs::path(*(target + 1)).stem()};
+        std::println("before {}", before);
+    } else if (distFromEnd == 0) {
+        std::string after{fs::path(*(target - 1)).stem()};
+        std::println("after {}", after);
+    } else {
+        std::string before{fs::path(*(target + 1)).stem()};
+        std::string after{fs::path(*(target - 1)).stem()};
+        std::println("before {}, and after {}", before, after);
+    }
+    std::println("\n...{}...", join(songs, ", "));
+}
+
+static bool isDigit(std::string_view num) { return num.find_first_not_of("0123456789") == std::string::npos; }
+
+void Playlist::find(Command& cmd) {
+    const std::vector<std::string>& playlist{getPlaylist()};
+    if (playlist.empty() || !Music::inPlaylistMode) {
+        std::println("Not currently playing a playlist.");
+        return;
+    }
+    std::string song{};
+    if (cmd.argCount() == 0) {
+        song = playlist[Music::playlistIdx-1];
+    } else {
+        song = cmd.nextArg();
+    }
+    if (isDigit(song)) {
+        size_t index{std::stoull(song)};
+        if (0 < index && index < playlist.size() + 1) {
+            song = playlist.at(index - 1);
+        } else {
+            std::println("Please enter a valid position between 1-{}.", playlist.size());
+            return;
+        }
+    } else {
+        AutoMatch match{playlist, song};
+        switch (match.matchType) {
+            case Match::NoMatch:
+                std::println("Song not found in playlist.");
+                return;
+            case Match::ExactMatch:
+                song = match.exactMatch();
+                break;
+            case Match::MultipleMatch:
+                std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+                return;
+        }
+    }
+    if (playlist.size() == 1) {
+        std::println("{} is 1st in the playlist.", song);
+        return;
+    }
+    auto posIter{std::find(playlist.begin(), playlist.end(), song)};
+    filterAndPrintSongs(playlist, posIter, song);
 }

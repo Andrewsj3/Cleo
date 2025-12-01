@@ -1,10 +1,13 @@
-CXX = clang++
+ifeq (,$(shell which ccache 2>/dev/null))
+	CXX = clang++
+else
+	CXX = ccache clang++
+endif
 
 EXE = cleo
 SRC_DIR = ./src
 OBJ_DIR = ./obj
 SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
-# OBJS = $(addsuffix .o, $(basename $(notdir $(SOURCES))))
 OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
 CXXSTD = -std=c++23
 CXXFLAGS = $(CXXSTD)
@@ -34,7 +37,7 @@ $(EXE): $(OBJS)
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
 
 clean:
-	rm -f $(EXE) $(OBJS)
+	rm -f $(EXE) $(OBJ_DIR)/*
 
 format:
 	clang-format $(SOURCES) -i

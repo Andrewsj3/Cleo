@@ -5,7 +5,7 @@
 #include <vector>
 class Command {
 public:
-    Command(const std::vector<std::string>&);
+    Command(const std::vector<std::string>& components);
     Command() = default;
 
     const std::string& function() const;
