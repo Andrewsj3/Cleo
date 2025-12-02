@@ -21,6 +21,7 @@ namespace Music {
     extern std::size_t playlistIdx;
     extern bool inPlaylistMode;
     extern bool isShuffled;
+    extern bool isPlaylistLooping;
 } // namespace Music
 
 void updateSongs();

@@ -17,12 +17,13 @@ namespace fs = std::filesystem;
 static std::random_device rd{std::random_device{}};
 static std::default_random_engine rng{std::default_random_engine{rd()}};
 const std::vector<std::string> Playlist::commandList{
-    "add", "find", "load", "play", "save", "shuffle", "status",
+    "add", "find", "load", "loop", "next", "play", "previous", "save", "shuffle", "status",
 };
 const CommandMap Playlist::commands{
     {"load", Playlist::load}, {"play", Playlist::play},     {"add", Playlist::add},
     {"save", Playlist::save}, {"status", Playlist::status}, {"shuffle", Playlist::shuffle},
-    {"find", Playlist::find},
+    {"find", Playlist::find}, {"next", Playlist::next},     {"previous", Playlist::previous},
+    {"loop", Playlist::loop},
 };
 
 const CommandDefinition Playlist::commandHelp{
@@ -46,7 +47,11 @@ turned on, the order changes.)"},
 Prints the song's position in the playlist, as well as the previous and next song if applicable.
 It also shows the previous 5 songs and the next 5 songs with the current song in bold and underline.
 If an index is given, it prints the song at the given index in the playlist. If nothing is given,
-it defaults to the current song being played.)"}};
+it defaults to the current song being played.)"},
+    {"next", "Plays the next song in the playlist as long as the end of the playlist has not been reached."},
+    {"previous", "Plays the previous song in the playlist unless the playlist is at the first song."},
+    {"loop", "Toggles whether the playlist should loop after reaching the end."},
+};
 
 static void playSong(const fs::path& songPath) {
     if (fs::exists(songPath)) {
@@ -307,7 +312,7 @@ void Playlist::find(Command& cmd) {
     }
     std::string song{};
     if (cmd.argCount() == 0) {
-        song = playlist[Music::playlistIdx-1];
+        song = playlist[Music::playlistIdx - 1];
     } else {
         song = cmd.nextArg();
     }
@@ -339,4 +344,36 @@ void Playlist::find(Command& cmd) {
     }
     auto posIter{std::find(playlist.begin(), playlist.end(), song)};
     filterAndPrintSongs(playlist, posIter, song);
+}
+
+void Playlist::next(Command& _) {
+    if (!Music::inPlaylistMode) {
+        std::println("Not currently playing a playlist.");
+        return;
+    }
+    if (Music::playlistIdx == Music::curPlaylist.size() && !Music::isPlaylistLooping) {
+        // Allow user to go forward if playlist is set to loop, which will send them back to the start
+        std::println("End of playlist reached.");
+        return;
+    }
+    play(_);
+}
+
+void Playlist::previous(Command& _) {
+    if (!Music::inPlaylistMode) {
+        std::println("Not currently playing a playlist.");
+        return;
+    }
+    if (Music::playlistIdx > 1) {
+        // Don't let user go back even if playlist is looping because it wouldn't make sense
+        Music::playlistIdx -= 2;
+        play(_);
+    } else {
+        std::println("Can't go back any further.");
+    }
+}
+
+void Playlist::loop(Command&) {
+    Music::isPlaylistLooping = !Music::isPlaylistLooping;
+    std::println("Playlist loop: {}.", Music::isPlaylistLooping ? "enabled" : "disabled");
 }

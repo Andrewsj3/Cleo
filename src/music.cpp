@@ -61,6 +61,7 @@ namespace Music {
     std::size_t playlistIdx{};
     bool inPlaylistMode{false};
     bool isShuffled{false};
+    bool isPlaylistLooping{false};
 } // namespace Music
 
 void updateSongs() {

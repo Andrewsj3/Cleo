@@ -10,6 +10,9 @@ namespace Cleo::Playlist {
     void shuffle(Command&);
     void status(Command&);
     void find(Command&);
+    void next(Command&);
+    void previous(Command&);
+    void loop(Command&);
     const extern std::flat_map<std::string, std::function<void(Command&)>> commands;
     const extern std::flat_map<std::string, std::string> commandHelp;
     const extern std::vector<std::string> commandList;

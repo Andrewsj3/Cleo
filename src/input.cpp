@@ -129,7 +129,7 @@ static bool shouldAdvance() {
         // Note the looping check is redundant, but we put it in to indicate looping takes
         // precedence over advancing the playlist
         return false;
-    } else if (Music::playlistIdx < Music::curPlaylist.size()) {
+    } else if (Music::playlistIdx < Music::curPlaylist.size() || Music::isPlaylistLooping) {
         return true;
     } else {
         Music::inPlaylistMode = false;
