@@ -23,11 +23,11 @@ const CommandMap Cleo::commands{
     {"help", Cleo::help},         {"time", Cleo::time},      {"loop", Cleo::loop},
     {"repeat", Cleo::repeat},     {"rename", Cleo::rename},  {"delete", Cleo::del},
     {"playlist", Cleo::playlist}, {"queue", Cleo::playlist}, {"seek", Cleo::seek},
-    {"forward", Cleo::forward},   {"rewind", Cleo::rewind},
+    {"forward", Cleo::forward},   {"rewind", Cleo::rewind},  {"find", Cleo::find},
 };
 const std::vector<std::string> Cleo::commandList{
-    "delete",   "exit",   "forward", "help",   "list", "loop", "pause", "play",
-    "playlist", "rename", "repeat",  "rewind", "seek", "stop", "time",  "volume",
+    "delete",   "exit",   "find",   "forward", "help", "list", "loop", "pause",  "play",
+    "playlist", "rename", "repeat", "rewind",  "seek", "stop", "time", "volume",
 };
 const CommandDefinition Cleo::commandHelp{
     {"play",
@@ -79,6 +79,8 @@ Seeking past the end of the song goes straight to the end and stops playback.)"}
 Like seek, but takes current time elapsed into account and adds the given duration.)"},
     {"rewind", R"(Usage: rewind <duration/timestamp>
 Like seek, but takes current time elapsed into account and subtracts the given duration.)"},
+    {"find", R"(Usage: find <search>
+Lists all songs that start with the specified search term.)"},
 };
 
 static constexpr int VOLUME_TOO_LOW{-1};
@@ -124,18 +126,10 @@ void Cleo::play(Command& cmd) {
 }
 
 void Cleo::list(Command&) {
-    std::stringstream sb{};
-    std::vector<std::string> directorySorted{};
-    for (const auto& dirEntry : fs::directory_iterator(Music::musicDir)) {
-        std::string ext{dirEntry.path().extension()};
-        if (Music::supportedExtensions.contains(ext)) {
-            directorySorted.push_back(dirEntry.path().stem().string());
-        }
-    }
-    std::sort(directorySorted.begin(), directorySorted.end());
-    // Print in alphabetical order for consistency
-    std::string dirList{join(directorySorted, ", ")};
-    std::println("{}", dirList);
+    std::vector<std::string> directorySorted(Music::songs.size());
+    std::transform(Music::songs.begin(), Music::songs.end(), directorySorted.begin(),
+                   [](std::string_view song) { return fs::path{song}.stem(); });
+    std::println("{}", join(directorySorted, ", "));
 }
 
 void Cleo::stop(Command&) {
@@ -570,3 +564,18 @@ void Cleo::seek(Command& cmd) {
 void Cleo::forward(Command& cmd) { seekRelative(cmd, true); }
 
 void Cleo::rewind(Command& cmd) { seekRelative(cmd, false); }
+
+void Cleo::find(Command& cmd) {
+    if (cmd.argCount() != 1) {
+        std::println("Expected a search term.");
+        return;
+    }
+    std::string substr{cmd.nextArg()};
+    std::vector<std::string> matches{};
+    std::for_each(Music::songs.begin(), Music::songs.end(), [&](std::string song) {
+        if (song.starts_with(substr)) {
+            matches.push_back(fs::path{song}.stem());
+        }
+    });
+    std::println("{}: {}", substr, join(matches, ", "));
+}

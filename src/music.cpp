@@ -77,6 +77,7 @@ void updateSongs() {
         newSongs.push_back(filename);
     }
     Music::songs = newSongs;
+    std::sort(Music::songs.begin(), Music::songs.end());
 }
 
 void updatePlaylists() {
