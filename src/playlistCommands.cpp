@@ -17,13 +17,13 @@ namespace fs = std::filesystem;
 static std::random_device rd{std::random_device{}};
 static std::default_random_engine rng{std::default_random_engine{rd()}};
 const std::vector<std::string> Playlist::commandList{
-    "add", "find", "load", "loop", "next", "play", "previous", "save", "shuffle", "status",
+    "add", "clear", "find", "load", "loop", "next", "play", "previous", "save", "shuffle", "status",
 };
 const CommandMap Playlist::commands{
     {"load", Playlist::load}, {"play", Playlist::play},     {"add", Playlist::add},
     {"save", Playlist::save}, {"status", Playlist::status}, {"shuffle", Playlist::shuffle},
     {"find", Playlist::find}, {"next", Playlist::next},     {"previous", Playlist::previous},
-    {"loop", Playlist::loop},
+    {"loop", Playlist::loop}, {"clear", Playlist::clear},
 };
 
 const CommandDefinition Playlist::commandHelp{
@@ -51,6 +51,7 @@ it defaults to the current song being played.)"},
     {"next", "Plays the next song in the playlist as long as the end of the playlist has not been reached."},
     {"previous", "Plays the previous song in the playlist unless the playlist is at the first song."},
     {"loop", "Toggles whether the playlist should loop after reaching the end."},
+    {"clear", "Removes all songs from the playlist."},
 };
 
 static void playSong(const fs::path& songPath) {
@@ -115,6 +116,7 @@ void Playlist::load(Command& cmd) {
     }
     AutoMatch match{Music::playlists, playlist};
     fs::path playlistPath{};
+    std::vector<std::string> basePlaylistNames{};
     switch (match.matchType) {
         case Match::NoMatch:
             std::println("Playlist not found.");
@@ -124,7 +126,9 @@ void Playlist::load(Command& cmd) {
             parsePlaylist(playlistPath);
             break;
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            basePlaylistNames.resize(match.matches.size());
+            std::transform(match.matches.begin(), match.matches.end(), basePlaylistNames.begin(), stem);
+            std::println("Multiple matches found, could be one of {}.", join(basePlaylistNames, ", "));
             break;
     }
 }
@@ -206,10 +210,10 @@ static void printPreviousNextSong() {
     std::string nextSong{"N/A"};
     const std::vector<std::string>& playlist{getPlaylist()};
     if (Music::playlistIdx > 1) {
-        prevSong = fs::path{playlist[Music::playlistIdx - 2]}.stem();
+        prevSong = stem(playlist[Music::playlistIdx - 2]);
     }
     if (Music::playlistIdx < playlist.size()) {
-        nextSong = fs::path{playlist[Music::playlistIdx]}.stem();
+        nextSong = stem(playlist[Music::playlistIdx]);
     }
     std::println("Previous song: {}, next song: {}", prevSong, nextSong);
 }
@@ -283,20 +287,16 @@ static void filterAndPrintSongs(const std::vector<std::string>& playlist,
     // Bounds checking to ensure we copy elements safely
     std::copy_n(iter - left, left + right + 1, songs.begin());
     auto target = std::find(songs.begin(), songs.end(), song);
-    std::transform(songs.cbegin(), songs.cend(), songs.begin(),
-                   [](std::string song) { return fs::path{song}.stem(); });
+    std::transform(songs.cbegin(), songs.cend(), songs.begin(), stem);
     *target = std::format("\x1b[4m\x1b[1m{}\x1b[0m", *target); // bold and underline
-    std::print("{} is {} in the playlist, ", fs::path{song}.stem().string(),
-               numAsPosition(distFromStart + 1));
+    std::print("{} is {} in the playlist, ", stem(song), numAsPosition(distFromStart + 1));
+    std::string before{stem(*(target + 1))};
+    std::string after{stem(*(target - 1))};
     if (distFromStart == 0) {
-        std::string before{fs::path(*(target + 1)).stem()};
         std::println("before {}", before);
     } else if (distFromEnd == 0) {
-        std::string after{fs::path(*(target - 1)).stem()};
         std::println("after {}", after);
     } else {
-        std::string before{fs::path(*(target + 1)).stem()};
-        std::string after{fs::path(*(target - 1)).stem()};
         std::println("before {}, and after {}", before, after);
     }
     std::println("\n...{}...", join(songs, ", "));
@@ -376,4 +376,12 @@ void Playlist::previous(Command& _) {
 void Playlist::loop(Command&) {
     Music::isPlaylistLooping = !Music::isPlaylistLooping;
     std::println("Playlist loop: {}.", Music::isPlaylistLooping ? "enabled" : "disabled");
+}
+
+void Playlist::clear(Command&) {
+    Music::curPlaylist.clear();
+    Music::shuffledPlaylist.clear();
+    Music::inPlaylistMode = false;
+    Music::playlistIdx = 0;
+    std::println("Playlist cleared.");
 }

@@ -87,6 +87,8 @@ static constexpr int VOLUME_TOO_LOW{-1};
 static constexpr int VOLUME_TOO_HIGH{-2};
 static constexpr int REPEATS_TOO_LOW{-3};
 
+std::string stem(std::string_view filename) { return fs::path{filename}.stem(); }
+
 void Cleo::play(Command& cmd) {
     if (cmd.argCount() != 1) {
         std::println("Expected exactly one song to play.");
@@ -105,6 +107,7 @@ void Cleo::play(Command& cmd) {
     }
     AutoMatch match{Music::songs, song};
     std::string matchedSong{};
+    std::vector<std::string> baseSongNames{};
     switch (match.matchType) {
         case Match::NoMatch:
             std::println("Song not found.");
@@ -113,6 +116,8 @@ void Cleo::play(Command& cmd) {
             matchedSong = match.exactMatch();
             break;
         case Match::MultipleMatch:
+            baseSongNames.resize(match.matches.size());
+            std::transform(Music::songs.begin(), Music::songs.end(), baseSongNames.begin(), stem);
             std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
             return;
     }
@@ -120,15 +125,14 @@ void Cleo::play(Command& cmd) {
         std::println("A match was found, but the file is in an unsupported format.");
         return;
     }
-    Music::curSong = fs::path{matchedSong}.stem();
+    Music::curSong = stem(matchedSong);
     Music::repeats = 0;
     Music::music.play();
 }
 
 void Cleo::list(Command&) {
     std::vector<std::string> directorySorted(Music::songs.size());
-    std::transform(Music::songs.begin(), Music::songs.end(), directorySorted.begin(),
-                   [](std::string_view song) { return fs::path{song}.stem(); });
+    std::transform(Music::songs.begin(), Music::songs.end(), directorySorted.begin(), stem);
     std::println("{}", join(directorySorted, ", "));
 }
 
@@ -268,6 +272,9 @@ void Cleo::help(Command& cmd) {
         search = cmd.function();
     } else {
         search = cmd.nextArg();
+    }
+    if (domain.contains(search)) {
+        findHelp(domain, search);
     }
     AutoMatch match{domain.keys(), search};
     switch (match.matchType) {
@@ -415,7 +422,7 @@ void Cleo::rename(Command& cmd) {
                          renamedSong.string());
             std::replace(Music::shuffledPlaylist.begin(), Music::shuffledPlaylist.end(), match.exactMatch(),
                          renamedSong.string());
-            std::string baseOldName{fs::path{songToRename}.stem()};
+            std::string baseOldName{songToRename.stem()};
             std::println("Renamed {} -> {}.", baseOldName, newName);
             break;
         }
@@ -461,7 +468,7 @@ void Cleo::del(Command& cmd) {
             std::erase(Music::curPlaylist, match.exactMatch());
             std::erase(Music::shuffledPlaylist, match.exactMatch());
             removeSongFromPlaylists(match.exactMatch());
-            std::string baseDelName{fs::path{match.exactMatch()}.stem()};
+            std::string baseDelName{stem(match.exactMatch())};
             std::println("Deleted {}.", baseDelName);
             break;
         }
@@ -476,8 +483,7 @@ void Cleo::playlist(Command& cmd) {
         std::vector<std::string> humanizedSongs{};
         const std::vector<std::string>& playlist{getPlaylist()};
         humanizedSongs.resize(playlist.size());
-        std::transform(playlist.cbegin(), playlist.cend(), humanizedSongs.begin(),
-                       [](const std::string& song) { return fs::path{song}.stem(); });
+        std::transform(playlist.cbegin(), playlist.cend(), humanizedSongs.begin(), stem);
         // We store the extensions to make loading songs easier, but we don't want to show that
         // to the user
         std::println("{}", join(humanizedSongs, ", "));
@@ -574,7 +580,7 @@ void Cleo::find(Command& cmd) {
     std::vector<std::string> matches{};
     std::for_each(Music::songs.begin(), Music::songs.end(), [&](std::string song) {
         if (song.starts_with(substr)) {
-            matches.push_back(fs::path{song}.stem());
+            matches.push_back(stem(song));
         }
     });
     std::println("{}: {}", substr, join(matches, ", "));
