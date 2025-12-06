@@ -17,13 +17,13 @@ namespace fs = std::filesystem;
 static std::random_device rd{std::random_device{}};
 static std::default_random_engine rng{std::default_random_engine{rd()}};
 const std::vector<std::string> Playlist::commandList{
-    "add", "clear", "find", "load", "loop", "next", "play", "previous", "save", "shuffle", "status",
+    "add", "clear", "find", "load", "loop", "next", "play", "previous", "remove", "save", "shuffle", "status",
 };
 const CommandMap Playlist::commands{
     {"load", Playlist::load}, {"play", Playlist::play},     {"add", Playlist::add},
     {"save", Playlist::save}, {"status", Playlist::status}, {"shuffle", Playlist::shuffle},
     {"find", Playlist::find}, {"next", Playlist::next},     {"previous", Playlist::previous},
-    {"loop", Playlist::loop}, {"clear", Playlist::clear},
+    {"loop", Playlist::loop}, {"clear", Playlist::clear},   {"remove", Playlist::remove},
 };
 
 const CommandDefinition Playlist::commandHelp{
@@ -299,7 +299,8 @@ static void filterAndPrintSongs(const std::vector<std::string>& playlist,
     } else {
         std::string before{stem(*(target + 1))};
         std::string after{stem(*(target - 1))};
-        // Note we can't define these before the condition otherwise we could get a segfault if we are at the beginning or end of a playlist
+        // Note we can't define these before the condition otherwise we could get a segfault if we are at the
+        // beginning or end of a playlist
         std::println("before {}, and after {}", before, after);
     }
     std::println("\n...{}...", join(songs, ", "));
@@ -387,4 +388,27 @@ void Playlist::clear(Command&) {
     Music::inPlaylistMode = false;
     Music::playlistIdx = 0;
     std::println("Playlist cleared.");
+}
+
+void Playlist::remove(Command& cmd) {
+    if (cmd.argCount() != 1) {
+        std::println("Expected a song to remove from the queue.");
+        return;
+    }
+    std::string song{cmd.nextArg()};
+    AutoMatch match{Music::curPlaylist, song};
+    switch (match.matchType) {
+        case Match::NoMatch:
+            std::println("Song not found in playlist.");
+            return;
+        case Match::ExactMatch:
+            song = match.exactMatch();
+            break;
+        case Match::MultipleMatch:
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            return;
+    }
+    Music::curPlaylist.erase(std::remove(Music::curPlaylist.begin(), Music::curPlaylist.end(), song),
+                             Music::curPlaylist.end());
+    std::println("Song removed.");
 }

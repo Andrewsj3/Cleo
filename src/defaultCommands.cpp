@@ -117,8 +117,8 @@ void Cleo::play(Command& cmd) {
             break;
         case Match::MultipleMatch:
             baseSongNames.resize(match.matches.size());
-            std::transform(Music::songs.begin(), Music::songs.end(), baseSongNames.begin(), stem);
-            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            std::transform(match.matches.begin(), match.matches.end(), baseSongNames.begin(), stem);
+            std::println("Multiple matches found, could be one of {}.", join(baseSongNames, ", "));
             return;
     }
     if (!Music::music.openFromFile(Music::musicDir / matchedSong)) {
