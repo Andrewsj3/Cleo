@@ -290,13 +290,16 @@ static void filterAndPrintSongs(const std::vector<std::string>& playlist,
     std::transform(songs.cbegin(), songs.cend(), songs.begin(), stem);
     *target = std::format("\x1b[4m\x1b[1m{}\x1b[0m", *target); // bold and underline
     std::print("{} is {} in the playlist, ", stem(song), numAsPosition(distFromStart + 1));
-    std::string before{stem(*(target + 1))};
-    std::string after{stem(*(target - 1))};
     if (distFromStart == 0) {
+        std::string before{stem(*(target + 1))};
         std::println("before {}", before);
     } else if (distFromEnd == 0) {
+        std::string after{stem(*(target - 1))};
         std::println("after {}", after);
     } else {
+        std::string before{stem(*(target + 1))};
+        std::string after{stem(*(target - 1))};
+        // Note we can't define these before the condition otherwise we could get a segfault if we are at the beginning or end of a playlist
         std::println("before {}, and after {}", before, after);
     }
     std::println("\n...{}...", join(songs, ", "));

@@ -13,7 +13,7 @@ CXXSTD = -std=c++23
 CXXFLAGS = $(CXXSTD)
 CXXFLAGS += -Wall -Wextra -Wpedantic -Wformat -Weffc++ -Wconversion -Wunused-function
 LDFLAGS = `pkg-config --libs sfml-audio readline`
-MAKEFLAGS += --no-builtin-rules --no-builtin-variables
+MAKEFLAGS += --no-builtin-rules
 DEBUG = 0
 ifeq ($(DEBUG), 1)
 	CXXFLAGS += -ggdb -DNDEBUG -fsanitize=address
@@ -37,7 +37,7 @@ $(EXE): $(OBJS)
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
 
 clean:
-	rm -f $(EXE) $(OBJ_DIR)/*
+	$(RM) $(EXE) $(OBJ_DIR)/*
 
 format:
 	clang-format $(SOURCES) -i
