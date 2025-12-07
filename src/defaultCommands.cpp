@@ -11,6 +11,7 @@
 #include <fstream>
 #include <print>
 #include <regex>
+#include <wordexp.h>
 using CommandDefinition = std::flat_map<std::string, std::string>;
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 // Note this definition means each command has the same signature, even though some commands
@@ -18,16 +19,31 @@ using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 
 namespace fs = std::filesystem;
 const CommandMap Cleo::commands{
-    {"exit", Cleo::exit},         {"list", Cleo::list},      {"pause", Cleo::pause},
-    {"play", Cleo::play},         {"stop", Cleo::stop},      {"volume", Cleo::volume},
-    {"help", Cleo::help},         {"time", Cleo::time},      {"loop", Cleo::loop},
-    {"repeat", Cleo::repeat},     {"rename", Cleo::rename},  {"delete", Cleo::del},
-    {"playlist", Cleo::playlist}, {"queue", Cleo::playlist}, {"seek", Cleo::seek},
-    {"forward", Cleo::forward},   {"rewind", Cleo::rewind},  {"find", Cleo::find},
+    {"exit", Cleo::exit},
+    {"list", Cleo::list},
+    {"pause", Cleo::pause},
+    {"play", Cleo::play},
+    {"stop", Cleo::stop},
+    {"volume", Cleo::volume},
+    {"help", Cleo::help},
+    {"time", Cleo::time},
+    {"loop", Cleo::loop},
+    {"repeat", Cleo::repeat},
+    {"rename", Cleo::rename},
+    {"delete", Cleo::del},
+    {"playlist", Cleo::playlist},
+    {"queue", Cleo::playlist},
+    {"seek", Cleo::seek},
+    {"forward", Cleo::forward},
+    {"rewind", Cleo::rewind},
+    {"find", Cleo::find},
+    {"set-music", Cleo::setMusicDir},
+    {"set-playlist", Cleo::setPlaylistDir},
 };
 const std::vector<std::string> Cleo::commandList{
-    "delete",   "exit",   "find",   "forward", "help", "list", "loop", "pause",  "play",
-    "playlist", "rename", "repeat", "rewind",  "seek", "stop", "time", "volume",
+    "delete",    "exit",         "find",     "forward", "help",   "list",   "loop",
+    "pause",     "play",         "playlist", "rename",  "repeat", "rewind", "seek",
+    "set-music", "set-playlist", "stop",     "time",    "volume",
 };
 const CommandDefinition Cleo::commandHelp{
     {"play",
@@ -50,7 +66,7 @@ By default, repeats the song once.
 Otherwise, repeats the song the given number of times provided it is at least 0.)"},
     {"rename", R"(Usage: rename <oldName> <newName>
 Renames a song in the music directory (autocomplete is supported). This also applies to any
-playlists with this song. Note the song must be in a supported format (see 'help formats')
+playlists with this song. Note the song must be in a supported format (see `help formats`)
 or it will fail. The new song will have the same extension as the original, so don't
 add an extension yourself. THIS DOES NOT CHECK IF A SONG WILL BE OVERWRITTEN.)"},
     {"formats", R"(Supported formats:
@@ -81,6 +97,11 @@ Like seek, but takes current time elapsed into account and adds the given durati
 Like seek, but takes current time elapsed into account and subtracts the given duration.)"},
     {"find", R"(Usage: find <search>
 Lists all songs that start with the specified search term.)"},
+    {"set-music", R"(Usage: set-music [directory]
+Instructs Cleo to search in this directory for songs, provided the directory exists.
+Note this change does not persist (yet).)"},
+    {"set-playlist", R"(Usage: set-playlist [directory]
+Like `set-music`, but controls where to look for playlists.)"},
 };
 
 static constexpr int VOLUME_TOO_LOW{-1};
@@ -584,4 +605,43 @@ void Cleo::find(Command& cmd) {
         }
     });
     std::println("{}: {}", substr, join(matches, ", "));
+}
+
+void Cleo::setMusicDir(Command& cmd) {
+    if (cmd.argCount() != 1) {
+        std::println("Music directory: {}", Music::musicDir.string());
+        return;
+    }
+    std::string tmpDir{cmd.nextArg()};
+    wordexp_t p;
+    wordexp(tmpDir.c_str(), &p, 0);
+    fs::path newMusicDir{p.we_wordv[p.we_offs]};
+    // Expand ~ to home directory
+    wordfree(&p);
+    if (!fs::exists(newMusicDir)) {
+        std::println("Given directory does not exist.");
+        return;
+    }
+    std::println("Set music directory to {}", newMusicDir.string());
+    Music::musicDir = newMusicDir;
+    updateSongs();
+}
+
+void Cleo::setPlaylistDir(Command& cmd) {
+    if (cmd.argCount() != 1) {
+        std::println("Playlist directory: {}", Music::playlistDir.string());
+        return;
+    }
+    std::string tmpDir{cmd.nextArg()};
+    wordexp_t p;
+    wordexp(tmpDir.c_str(), &p, 0);
+    fs::path newPlaylistDir{p.we_wordv[p.we_offs]};
+    wordfree(&p);
+    if (!fs::exists(newPlaylistDir)) {
+        std::println("Given directory does not exist.");
+        return;
+    }
+    std::println("Set playlist directory to {}", newPlaylistDir.string());
+    Music::playlistDir = newPlaylistDir;
+    updatePlaylists();
 }

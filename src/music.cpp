@@ -44,8 +44,8 @@ void writeCache() {
 
 namespace Music {
     sf::Music music{};
-    const fs::path musicDir{getHome() / "music"};
-    const fs::path playlistDir{musicDir / "playlists"};
+    fs::path musicDir{getHome() / "music"};
+    fs::path playlistDir{musicDir / "playlists"};
     const std::unordered_set<std::string> supportedExtensions{
         ".mp3", ".ogg", ".flac", ".wav", ".aiff",
     };
