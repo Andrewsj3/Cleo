@@ -144,7 +144,7 @@ void inputThread() {
     while (Threads::running) {
         if (!Threads::readyForInput) [[unlikely]]
             continue;
-        const char* prompt = Threads::helpMode ? "?> " : "> ";
+        const char* prompt = Threads::helpMode ? "?> " : Music::prompt.c_str();
         const char* input = readline(prompt);
         if (input == NULL /*in case of EOF*/) {
             if (Threads::helpMode) {

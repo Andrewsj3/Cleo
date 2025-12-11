@@ -39,11 +39,13 @@ const CommandMap Cleo::commands{
     {"find", Cleo::find},
     {"set-music", Cleo::setMusicDir},
     {"set-playlist", Cleo::setPlaylistDir},
+    {"set-prompt", Cleo::setPrompt},
     {"run", Cleo::run},
 };
 const std::vector<std::string> Cleo::commandList{
-    "delete", "exit",   "find",   "forward", "help", "list",      "loop",         "pause", "play", "playlist",
-    "rename", "repeat", "rewind", "run",     "seek", "set-music", "set-playlist", "stop",  "time", "volume",
+    "delete", "exit",      "find",         "forward",    "help",   "list",   "loop",
+    "pause",  "play",      "playlist",     "rename",     "repeat", "rewind", "run",
+    "seek",   "set-music", "set-playlist", "set-prompt", "stop",   "time",   "volume",
 };
 const CommandDefinition Cleo::commandHelp{
     {"play",
@@ -112,7 +114,11 @@ Scripts are located in ~/.config/cleo
 In particular, ~/.config/cleo/startup is automatically executed when Cleo starts,
 so any changes you want to make permanent should go in there. However, scripts
 cannot run other scripts.)"},
-};
+    {"set-prompt", R"(Usage: set-prompt <prompt>
+Changes the prompt that appears at the beginning of each line. This does not apply
+to the prompt used in help mode. It is highly recommended to use quotes if you want
+whitespace in your prompt. Like with the other `set-` functions, you should put this
+into ~/.config/cleo/startup to make it permanent.)"}};
 
 static constexpr int VOLUME_TOO_LOW{-1};
 static constexpr int VOLUME_TOO_HIGH{-2};
@@ -241,6 +247,8 @@ static void setVolume(const std::string& volume) {
 void Cleo::volume(Command& cmd) {
     if (cmd.argCount() == 0) {
         getVolume();
+    } else if (cmd.argCount() != 1) {
+        findHelp(Cleo::commandHelp, "volume");
     } else {
         setVolume(cmd.nextArg());
     }
@@ -463,7 +471,7 @@ static void renamePair(std::string_view oldName, const std::string& newName) {
 }
 
 void Cleo::rename(Command& cmd) {
-    if (cmd.argCount() & 1 && cmd.argCount() < 2) {
+    if (cmd.argCount() & 1 || cmd.argCount() < 2) {
         findHelp(Cleo::commandHelp, "rename");
         return;
     }
@@ -668,6 +676,14 @@ void Cleo::setPlaylistDir(Command& cmd) {
     }
     Music::playlistDir = newPlaylistDir;
     updatePlaylists();
+}
+
+void Cleo::setPrompt(Command& cmd) {
+    if (cmd.argCount() != 1) {
+        findHelp(Cleo::commandHelp, "set-prompt");
+        return;
+    }
+    Music::prompt = cmd.nextArg();
 }
 
 static void runScript(std::string&& script) {

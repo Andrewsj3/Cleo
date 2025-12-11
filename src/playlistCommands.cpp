@@ -62,11 +62,9 @@ static void playSong(const fs::path& songPath) {
             Music::music.play();
         } else {
             std::println("File is in an unsupported format.");
-            std::print("> ");
         }
     } else {
         std::println("Song not found.");
-        std::print("> ");
     }
     // We need to print the prompt here otherwise the output will get messed up
     std::flush(std::cout);
@@ -106,9 +104,13 @@ static void parsePlaylist(const fs::path& path) {
 }
 
 void Playlist::load(Command& cmd) {
-    if (cmd.argCount() != 1) {
+    if (cmd.argCount() == 0) {
         std::vector<std::string> basePlaylistNames{transformStem(Music::playlists)};
         std::println("Available playlists:\n{}", join(basePlaylistNames, "\n"));
+        return;
+    }
+    if (cmd.argCount() != 1) {
+        findHelp(Playlist::commandHelp, "load");
         return;
     }
     std::string playlist{cmd.nextArg()};

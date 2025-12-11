@@ -31,6 +31,7 @@ namespace Cleo {
     void find(Command&);
     void setMusicDir(Command&);
     void setPlaylistDir(Command&);
+    void setPrompt(Command&);
     void run(Command&);
     const extern std::flat_map<std::string, std::function<void(Command&)>> commands;
     const extern std::flat_map<std::string, std::string> commandHelp;

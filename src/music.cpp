@@ -69,6 +69,7 @@ namespace Music {
     bool isShuffled{false};
     bool isPlaylistLooping{false};
     bool isExecutingScript{false};
+    std::string prompt{"> "};
 } // namespace Music
 
 void updateSongs() {

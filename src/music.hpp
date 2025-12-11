@@ -25,6 +25,7 @@ namespace Music {
     extern bool isShuffled;
     extern bool isPlaylistLooping;
     extern bool isExecutingScript;
+    extern std::string prompt;
 } // namespace Music
 
 void updateSongs();
