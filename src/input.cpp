@@ -186,7 +186,6 @@ void backgroundThread() {
             continue;
         }
         std::vector<Command> commands{parseString(Threads::userInput)};
-        std::println("Executing commands");
         executeCmds(commands);
         Threads::userInput.clear();
         Threads::readyForInput = true;
