@@ -8,5 +8,5 @@ struct AutoMatch {
     AutoMatch(const std::vector<std::string>& choices, std::string_view substr);
     Match matchType{};
     std::vector<std::string> matches{};
-    const std::string exactMatch();
+    const std::string exactMatch() const;
 };

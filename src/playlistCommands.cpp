@@ -36,23 +36,24 @@ extension, so you don't need to specify one yourself.)"},
     {"play", R"(Starts playing the playlist and advances the song index by 1.
 This means calling `playlist play` again skips to the next song, unless the current song
 is the last song, in which case it will loop to the beginning.)"},
-    {"add", R"(Usage: playlist add <song>
-Adds the specified song to the end of the current playlist.)"},
+    {"add", R"(Usage: playlist add <songs>
+Adds each song to the end of the current playlist, as long as it is not in the playlist already.)"},
     {"commands", join(Playlist::commandList, "\n")},
     {"status", R"(Shows the current song being played, as well as the previous and next
 songs if applicable. Also displays current time elapsed and total length of playlist.)"},
     {"shuffle", R"(Toggles between the shuffled playlist and the normal playlist. Note everytime shuffle is
 turned on, the order changes.)"},
-    {"find", R"(Usage: playlist find [song]|[index]
-Prints the song's position in the playlist, as well as the previous and next song if applicable.
-It also shows the previous 5 songs and the next 5 songs with the current song in bold and underline.
-If an index is given, it prints the song at the given index in the playlist. If nothing is given,
-it defaults to the current song being played.)"},
+    {"find", R"(Usage: playlist find [songs]|[indices]
+For each song or index given, prints the song's position in the playlist, as well as the previous and
+next song if applicable. It also shows the previous 5 songs and the next 5 songs with the current song
+in bold and underline. If an index is given, it prints the song at the given index in the playlist.
+If nothing is given, it defaults to the current song being played.)"},
     {"next", "Plays the next song in the playlist as long as the end of the playlist has not been reached."},
     {"previous", "Plays the previous song in the playlist unless the playlist is at the first song."},
     {"loop", "Toggles whether the playlist should loop after reaching the end."},
     {"clear", "Removes all songs from the playlist."},
-};
+    {"remove", R"(Usage: playlist remove <songs>
+Removes each song from the current playlist. To make this change permanent, use `playlist save`.)"}};
 
 static void playSong(const fs::path& songPath) {
     if (fs::exists(songPath)) {
@@ -106,7 +107,8 @@ static void parsePlaylist(const fs::path& path) {
 
 void Playlist::load(Command& cmd) {
     if (cmd.argCount() != 1) {
-        std::println("Expected the name of a playlist.");
+        std::vector<std::string> basePlaylistNames{transformStem(Music::playlists)};
+        std::println("Available playlists:\n{}", join(basePlaylistNames, "\n"));
         return;
     }
     std::string playlist{cmd.nextArg()};
@@ -116,7 +118,6 @@ void Playlist::load(Command& cmd) {
     }
     AutoMatch match{Music::playlists, playlist};
     fs::path playlistPath{};
-    std::vector<std::string> basePlaylistNames{};
     switch (match.matchType) {
         case Match::NoMatch:
             std::println("Playlist not found.");
@@ -126,8 +127,7 @@ void Playlist::load(Command& cmd) {
             parsePlaylist(playlistPath);
             break;
         case Match::MultipleMatch:
-            basePlaylistNames.resize(match.matches.size());
-            std::transform(match.matches.begin(), match.matches.end(), basePlaylistNames.begin(), stem);
+            std::vector<std::string> basePlaylistNames{transformStem(match.matches)};
             std::println("Multiple matches found, could be one of {}.", join(basePlaylistNames, ", "));
             break;
     }
@@ -149,12 +149,7 @@ void Playlist::play(Command&) {
     ++Music::playlistIdx;
 }
 
-void Playlist::add(Command& cmd) {
-    if (cmd.argCount() != 1) {
-        std::println("Expected a song to add to the current playlist.");
-        return;
-    }
-    std::string song{cmd.nextArg()};
+static void addSong(std::string_view song) {
     AutoMatch match{Music::songs, song};
     fs::path songPath{};
     const std::vector<std::string>& playlist{getPlaylist()};
@@ -177,8 +172,19 @@ void Playlist::add(Command& cmd) {
     }
 }
 
+void Playlist::add(Command& cmd) {
+    if (cmd.argCount() == 0) {
+        findHelp(Playlist::commandHelp, "add");
+        return;
+    }
+    while (cmd.argCount() > 0) {
+        addSong(cmd.nextArg());
+    }
+}
+
 void Playlist::save(Command& cmd) {
     if (cmd.argCount() != 1) {
+        findHelp(Playlist::commandHelp, "save");
         std::println("Expected a name for the playlist.");
         return;
     }
@@ -308,18 +314,7 @@ static void filterAndPrintSongs(const std::vector<std::string>& playlist,
 
 static bool isDigit(std::string_view num) { return num.find_first_not_of("0123456789") == std::string::npos; }
 
-void Playlist::find(Command& cmd) {
-    const std::vector<std::string>& playlist{getPlaylist()};
-    if (playlist.empty() || !Music::inPlaylistMode) {
-        std::println("Not currently playing a playlist.");
-        return;
-    }
-    std::string song{};
-    if (cmd.argCount() == 0) {
-        song = playlist[Music::playlistIdx - 1];
-    } else {
-        song = cmd.nextArg();
-    }
+static void findSong(const std::vector<std::string>& playlist, std::string&& song) {
     if (isDigit(song)) {
         size_t index{std::stoull(song)};
         if (0 < index && index < playlist.size() + 1) {
@@ -348,6 +343,22 @@ void Playlist::find(Command& cmd) {
     }
     auto posIter{std::find(playlist.begin(), playlist.end(), song)};
     filterAndPrintSongs(playlist, posIter, song);
+}
+
+void Playlist::find(Command& cmd) {
+    const std::vector<std::string>& playlist{getPlaylist()};
+    if (playlist.empty() || !Music::inPlaylistMode) {
+        std::println("Not currently playing a playlist.");
+        return;
+    }
+    std::string song{};
+    if (cmd.argCount() == 0) {
+        song = playlist[Music::playlistIdx - 1];
+    } else {
+        while (cmd.argCount() > 0) {
+            findSong(playlist, cmd.nextArg());
+        }
+    }
 }
 
 void Playlist::next(Command& _) {
@@ -390,12 +401,7 @@ void Playlist::clear(Command&) {
     std::println("Playlist cleared.");
 }
 
-void Playlist::remove(Command& cmd) {
-    if (cmd.argCount() != 1) {
-        std::println("Expected a song to remove from the queue.");
-        return;
-    }
-    std::string song{cmd.nextArg()};
+static void removeSong(std::string&& song) {
     AutoMatch match{Music::curPlaylist, song};
     switch (match.matchType) {
         case Match::NoMatch:
@@ -411,4 +417,14 @@ void Playlist::remove(Command& cmd) {
     Music::curPlaylist.erase(std::remove(Music::curPlaylist.begin(), Music::curPlaylist.end(), song),
                              Music::curPlaylist.end());
     std::println("Song removed.");
+}
+
+void Playlist::remove(Command& cmd) {
+    if (cmd.argCount() == 0) {
+        findHelp(Playlist::commandHelp, "remove");
+        return;
+    }
+    while (cmd.argCount() > 0) {
+        removeSong(cmd.nextArg());
+    }
 }

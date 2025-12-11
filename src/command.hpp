@@ -1,11 +1,11 @@
 #pragma once
 
-#include <cstddef>
 #include <string>
 #include <vector>
 class Command {
 public:
     Command(const std::vector<std::string>& components);
+    Command(std::initializer_list<std::string> components);
     Command() = default;
 
     const std::string& function() const;

@@ -10,8 +10,10 @@ namespace Music {
     extern sf::Music music;
     extern std::filesystem::path musicDir;
     extern std::filesystem::path playlistDir;
+    extern std::filesystem::path scriptDir;
     extern const std::unordered_set<std::string> supportedExtensions;
     extern std::vector<std::string> songs;
+    extern std::vector<std::string> scripts;
     extern std::vector<std::string> playlists;
     extern std::vector<std::string> curPlaylist;
     extern std::vector<std::string> shuffledPlaylist;
@@ -22,9 +24,11 @@ namespace Music {
     extern bool inPlaylistMode;
     extern bool isShuffled;
     extern bool isPlaylistLooping;
+    extern bool isExecutingScript;
 } // namespace Music
 
 void updateSongs();
 void writeCache();
 void updatePlaylists();
+void updateScripts();
 const std::vector<std::string>& getPlaylist();

@@ -1,11 +1,11 @@
 #include "autocomplete.hpp"
 #include <algorithm>
 
-const std::string AutoMatch::exactMatch() {
+const std::string AutoMatch::exactMatch() const {
     if (matchType == Match::NoMatch || matchType == Match::MultipleMatch) {
         return "";
     }
-    return matches.at(0);
+    return matches.front();
 }
 AutoMatch::AutoMatch(const std::vector<std::string>& choices, std::string_view substr) {
     std::copy_if(choices.begin(), choices.end(), std::back_inserter(matches),

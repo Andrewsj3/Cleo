@@ -5,39 +5,49 @@ else
 endif
 
 EXE = cleo
+DBG_EXE = cleo-dbg
 SRC_DIR = ./src
 OBJ_DIR = ./obj
 SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
+DBG_OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%-dbg.o, $(SOURCES))
 CXXSTD = -std=c++23
 CXXFLAGS = $(CXXSTD)
 CXXFLAGS += -Wall -Wextra -Wpedantic -Wformat -Weffc++ -Wconversion -Wunused-function
+DBGFLAGS = -ggdb -UNDEBUG -fsanitize=address
+RELFLAGS = -DNDEBUG -O2
 LDFLAGS = `pkg-config --libs sfml-audio readline`
 MAKEFLAGS += --no-builtin-rules
-DEBUG = 0
-ifeq ($(DEBUG), 1)
-	CXXFLAGS += -ggdb -DNDEBUG -fsanitize=address
-else
-	CXXFLAGS += -UNDEBUG -O2
-endif
+
+$(OBJ_DIR)/%-dbg.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/%.hpp
+	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -c -o $@ $<
+
+$(OBJ_DIR)/%-dbg.o: $(SRC_DIR)/%.cpp 
+	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -c -o $@ $<
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/%.hpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(RELFLAGS) -c -o $@ $<
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(RELFLAGS) -c -o $@ $<
 
 all: $(EXE) $(OBJ_DIR)
-	@echo All sources built successfully
+	@echo Finished release build
+
+debug: $(DBG_EXE) $(OBJ_DIR)
+	@echo Finished debug build
 
 $(OBJ_DIR):
 	mkdir -p ./obj
 
+$(DBG_EXE): $(DBG_OBJS)
+	$(CXX) -o $@ $^ $(DBGFLAGS) $(LDFLAGS)
+
 $(EXE): $(OBJS)
-	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
+	$(CXX) -o $@ $^ $(RELFLAGS) $(LDFLAGS)
 
 clean:
-	$(RM) $(EXE) $(OBJ_DIR)/*
+	$(RM) $(EXE) $(DBG_EXE) $(OBJ_DIR)/*
 
 format:
 	clang-format $(SOURCES) -i

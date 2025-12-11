@@ -9,15 +9,15 @@
 #include <print>
 #include <thread>
 #if defined(__unix)
-#include "readline/history.h"
-#include "readline/readline.h"
+#include <readline/history.h>
+#include <readline/readline.h>
 #elif defined(WIN32)
 #error "Unix based only, sorry"
 #endif
 
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 
-static std::vector<Command> parseString(std::string_view input) {
+std::vector<Command> parseString(std::string_view input) {
     bool isQuoted{false};
     std::vector<Command> commands{};
     std::vector<std::string> thisCommand{};
@@ -49,8 +49,9 @@ static std::vector<Command> parseString(std::string_view input) {
     }
     if (!current.str().empty()) {
         thisCommand.push_back(current.str());
-        commands.emplace_back(thisCommand);
     }
+    assert(!thisCommand.empty() && "Bug encountered while parsing input");
+    commands.emplace_back(thisCommand);
     return commands;
 }
 
@@ -77,7 +78,7 @@ void parseCmd(Command& cmd, const CommandMap& commands) {
     }
 }
 
-static void executeCmds(const std::vector<Command>& commands) {
+void executeCmds(const std::vector<Command>& commands) {
     for (auto cmd : commands) {
         if (Threads::helpMode) {
             // Note that this can change between commands, so some commands may be executed in
@@ -169,7 +170,6 @@ void inputThread() {
 
 void backgroundThread() {
     using namespace std::chrono_literals;
-    std::vector<Command> commands{};
     Command _;
     while (Threads::running) {
         if (shouldRepeat()) {
@@ -185,7 +185,8 @@ void backgroundThread() {
             std::this_thread::sleep_for(10ms);
             continue;
         }
-        commands = parseString(Threads::userInput);
+        std::vector<Command> commands{parseString(Threads::userInput)};
+        std::println("Executing commands");
         executeCmds(commands);
         Threads::userInput.clear();
         Threads::readyForInput = true;

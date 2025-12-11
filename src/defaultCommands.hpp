@@ -8,6 +8,8 @@
 std::string join(const std::vector<std::string>& vec, std::string_view delim);
 std::string numAsTimestamp(int time);
 std::string stem(std::string_view filename);
+std::vector<std::string> transformStem(const std::vector<std::string>& input);
+void findHelp(const std::flat_map<std::string, std::string>& domain, const std::string& topic);
 
 namespace Cleo {
     void help(Command&);
@@ -29,6 +31,7 @@ namespace Cleo {
     void find(Command&);
     void setMusicDir(Command&);
     void setPlaylistDir(Command&);
+    void run(Command&);
     const extern std::flat_map<std::string, std::function<void(Command&)>> commands;
     const extern std::flat_map<std::string, std::string> commandHelp;
     const extern std::vector<std::string> commandList;

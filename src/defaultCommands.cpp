@@ -39,11 +39,11 @@ const CommandMap Cleo::commands{
     {"find", Cleo::find},
     {"set-music", Cleo::setMusicDir},
     {"set-playlist", Cleo::setPlaylistDir},
+    {"run", Cleo::run},
 };
 const std::vector<std::string> Cleo::commandList{
-    "delete",    "exit",         "find",     "forward", "help",   "list",   "loop",
-    "pause",     "play",         "playlist", "rename",  "repeat", "rewind", "seek",
-    "set-music", "set-playlist", "stop",     "time",    "volume",
+    "delete", "exit",   "find",   "forward", "help", "list",      "loop",         "pause", "play", "playlist",
+    "rename", "repeat", "rewind", "run",     "seek", "set-music", "set-playlist", "stop",  "time", "volume",
 };
 const CommandDefinition Cleo::commandHelp{
     {"play",
@@ -64,19 +64,21 @@ it is between 0 and 100.)"},
     {"repeat", R"(Usage: repeat [numRepeats]
 By default, repeats the song once.
 Otherwise, repeats the song the given number of times provided it is at least 0.)"},
-    {"rename", R"(Usage: rename <oldName> <newName>
+    {"rename", R"(Usage: rename <oldNames> <newNames>
 Renames a song in the music directory (autocomplete is supported). This also applies to any
 playlists with this song. Note the song must be in a supported format (see `help formats`)
 or it will fail. The new song will have the same extension as the original, so don't
-add an extension yourself. THIS DOES NOT CHECK IF A SONG WILL BE OVERWRITTEN.)"},
+add an extension yourself. If you want to rename multiple songs, it works like this:
+rename old1 new1 old2 new2 ...
+THIS COMMAND DOES NOT CHECK IF A SONG WILL BE OVERWRITTEN.)"},
     {"formats", R"(Supported formats:
 mp3
 ogg
 flac
 wav
 aiff)"},
-    {"delete", R"(Usage: delete <songName>
-Deletes a song from the music directory. Like `rename`, the song must be in a supported
+    {"delete", R"(Usage: delete <songs>
+Deletes each song from the music directory. Like `rename`, the song must be in a supported
 format or it will not be deleted. This will also remove the song from all playlists.)"},
     {"autocomplete", R"(When typing a song, file, or command, you can type the first few
 characters as long as it doesn't match anything else, e.g. `l` doesn't work because it
@@ -95,13 +97,21 @@ Seeking past the end of the song goes straight to the end and stops playback.)"}
 Like seek, but takes current time elapsed into account and adds the given duration.)"},
     {"rewind", R"(Usage: rewind <duration/timestamp>
 Like seek, but takes current time elapsed into account and subtracts the given duration.)"},
-    {"find", R"(Usage: find <search>
-Lists all songs that start with the specified search term.)"},
+    {"find", R"(Usage: find <searches>
+For each search term given, lists all songs that start with the specified search term.)"},
     {"set-music", R"(Usage: set-music [directory]
 Instructs Cleo to search in this directory for songs, provided the directory exists.
-Note this change does not persist (yet).)"},
+To make this change permanent, put this command into ~/.config/cleo/startup
+(see `run` for more))"},
     {"set-playlist", R"(Usage: set-playlist [directory]
 Like `set-music`, but controls where to look for playlists.)"},
+    {"run", R"(Usage: run <scripts>
+Executes commands from the given scripts. Commands are in the same form as regular
+Cleo commands. Lines beginning with a `#` are treated as comments and ignored.
+Scripts are located in ~/.config/cleo
+In particular, ~/.config/cleo/startup is automatically executed when Cleo starts,
+so any changes you want to make permanent should go in there. However, scripts
+cannot run other scripts.)"},
 };
 
 static constexpr int VOLUME_TOO_LOW{-1};
@@ -110,9 +120,42 @@ static constexpr int REPEATS_TOO_LOW{-3};
 
 std::string stem(std::string_view filename) { return fs::path{filename}.stem(); }
 
+std::vector<std::string> transformStem(const std::vector<std::string>& input) {
+    std::vector<std::string> output(input.size());
+    std::transform(input.cbegin(), input.cend(), output.begin(), stem);
+    return output;
+}
+
+void findHelp(const CommandDefinition& domain, const std::string& topic) {
+    if (topic == "quit") {
+        if (Threads::helpMode) {
+            Threads::helpMode = false;
+        } else {
+            std::println("No help found for 'quit'.");
+        }
+        return;
+    }
+    if (domain.contains(topic)) {
+        std::println("{}", domain.at(topic));
+        return;
+    }
+    AutoMatch match{domain.keys(), topic};
+    switch (match.matchType) {
+        case Match::NoMatch:
+            std::println("No help found for '{}'.", topic);
+            break;
+        case Match::ExactMatch:
+            std::println("{}", domain.at(match.exactMatch()));
+            break;
+        case Match::MultipleMatch:
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            break;
+    }
+}
+
 void Cleo::play(Command& cmd) {
     if (cmd.argCount() != 1) {
-        std::println("Expected exactly one song to play.");
+        findHelp(Cleo::commandHelp, "play");
         return;
     }
     std::string song{cmd.nextArg()};
@@ -128,7 +171,6 @@ void Cleo::play(Command& cmd) {
     }
     AutoMatch match{Music::songs, song};
     std::string matchedSong{};
-    std::vector<std::string> baseSongNames{};
     switch (match.matchType) {
         case Match::NoMatch:
             std::println("Song not found.");
@@ -137,8 +179,7 @@ void Cleo::play(Command& cmd) {
             matchedSong = match.exactMatch();
             break;
         case Match::MultipleMatch:
-            baseSongNames.resize(match.matches.size());
-            std::transform(match.matches.begin(), match.matches.end(), baseSongNames.begin(), stem);
+            std::vector<std::string> baseSongNames{transformStem(match.matches)};
             std::println("Multiple matches found, could be one of {}.", join(baseSongNames, ", "));
             return;
     }
@@ -152,8 +193,7 @@ void Cleo::play(Command& cmd) {
 }
 
 void Cleo::list(Command&) {
-    std::vector<std::string> directorySorted(Music::songs.size());
-    std::transform(Music::songs.begin(), Music::songs.end(), directorySorted.begin(), stem);
+    std::vector<std::string> directorySorted{transformStem(Music::songs)};
     std::println("{}", join(directorySorted, ", "));
 }
 
@@ -251,33 +291,6 @@ static std::vector<std::string> split(const std::string& str, std::string_view d
     return ret;
 }
 
-static void findHelp(const CommandDefinition& domain, const std::string& topic) {
-    if (topic == "quit") {
-        if (Threads::helpMode) {
-            Threads::helpMode = false;
-        } else {
-            std::println("No help found for 'quit'.");
-        }
-        return;
-    }
-    if (domain.contains(topic)) {
-        std::println("{}", domain.at(topic));
-        return;
-    }
-    AutoMatch match{domain.keys(), topic};
-    switch (match.matchType) {
-        case Match::NoMatch:
-            std::println("No help found for '{}'.", topic);
-            break;
-        case Match::ExactMatch:
-            std::println("{}", domain.at(match.exactMatch()));
-            break;
-        case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
-            break;
-    }
-}
-
 void Cleo::help(Command& cmd) {
     if (cmd.argCount() == 0 && !Threads::helpMode) {
         std::println("Welcome to Cleo's interactive help utility.");
@@ -296,6 +309,7 @@ void Cleo::help(Command& cmd) {
     }
     if (domain.contains(search)) {
         findHelp(domain, search);
+        return;
     }
     AutoMatch match{domain.keys(), search};
     switch (match.matchType) {
@@ -421,13 +435,7 @@ static void renameSongInPlaylists(std::string_view song, std::string_view newNam
     }
 }
 
-void Cleo::rename(Command& cmd) {
-    if (cmd.argCount() != 2) {
-        std::println("Expected an old name and a new name.");
-        return;
-    }
-    std::string oldName{cmd.nextArg()};
-    std::string newName{cmd.nextArg()};
+static void renamePair(std::string_view oldName, const std::string& newName) {
     AutoMatch match{Music::songs, oldName};
     fs::path songToRename;
     switch (match.matchType) {
@@ -448,8 +456,19 @@ void Cleo::rename(Command& cmd) {
             break;
         }
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            std::vector<std::string> baseNames{transformStem(match.matches)};
+            std::println("Multiple matches found, could be one of {}.", join(baseNames, ", "));
             break;
+    }
+}
+
+void Cleo::rename(Command& cmd) {
+    if (cmd.argCount() & 1 && cmd.argCount() < 2) {
+        findHelp(Cleo::commandHelp, "rename");
+        return;
+    }
+    while (cmd.argCount() >= 2) {
+        renamePair(cmd.nextArg(), cmd.nextArg());
     }
 }
 
@@ -472,13 +491,8 @@ static void removeSongFromPlaylists(std::string_view song) {
     }
 }
 
-void Cleo::del(Command& cmd) {
-    if (cmd.argCount() != 1) {
-        std::println("Expected exactly one song to delete.");
-        return;
-    }
-    std::string songToDelete{cmd.nextArg()};
-    AutoMatch match{Music::songs, songToDelete};
+static void removeSong(std::string_view song) {
+    AutoMatch match{Music::songs, song};
     fs::path songPath;
     switch (match.matchType) {
         case Match::NoMatch:
@@ -494,19 +508,26 @@ void Cleo::del(Command& cmd) {
             break;
         }
         case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            std::vector<std::string> baseNames{transformStem(match.matches)};
+            std::println("Multiple matches found, could be one of {}.", join(baseNames, ", "));
             break;
     }
 }
 
+void Cleo::del(Command& cmd) {
+    if (cmd.argCount() == 0) {
+        findHelp(Cleo::commandHelp, "delete");
+        return;
+    }
+    while (cmd.argCount() > 0) {
+        removeSong(cmd.nextArg());
+    }
+}
+
 void Cleo::playlist(Command& cmd) {
-    if (cmd.arguments().empty()) {
-        std::vector<std::string> humanizedSongs{};
+    if (cmd.argCount() == 0) {
         const std::vector<std::string>& playlist{getPlaylist()};
-        humanizedSongs.resize(playlist.size());
-        std::transform(playlist.cbegin(), playlist.cend(), humanizedSongs.begin(), stem);
-        // We store the extensions to make loading songs easier, but we don't want to show that
-        // to the user
+        std::vector<std::string> humanizedSongs{transformStem(playlist)};
         std::println("{}", join(humanizedSongs, ", "));
         return;
     }
@@ -551,7 +572,7 @@ static sf::Time getTime(Command& cmd) {
 
 static void seekRelative(Command& cmd, bool forward) {
     if (cmd.argCount() != 1) {
-        std::println("Expected a timestamp or duration in seconds.");
+        findHelp(Cleo::commandHelp, forward ? "forward" : "rewind");
         return;
     }
     sf::Time duration{getTime(cmd)};
@@ -573,7 +594,7 @@ static void seekRelative(Command& cmd, bool forward) {
 
 void Cleo::seek(Command& cmd) {
     if (cmd.argCount() != 1) {
-        std::println("Expected a timestamp or duration in seconds to seek to.");
+        findHelp(Cleo::commandHelp, "seek");
         return;
     }
     if (Music::music.getStatus() == sf::Music::Status::Stopped) {
@@ -592,12 +613,7 @@ void Cleo::forward(Command& cmd) { seekRelative(cmd, true); }
 
 void Cleo::rewind(Command& cmd) { seekRelative(cmd, false); }
 
-void Cleo::find(Command& cmd) {
-    if (cmd.argCount() != 1) {
-        std::println("Expected a search term.");
-        return;
-    }
-    std::string substr{cmd.nextArg()};
+static void findSong(std::string_view substr) {
     std::vector<std::string> matches{};
     std::for_each(Music::songs.begin(), Music::songs.end(), [&](std::string song) {
         if (song.starts_with(substr)) {
@@ -605,6 +621,16 @@ void Cleo::find(Command& cmd) {
         }
     });
     std::println("{}: {}", substr, join(matches, ", "));
+}
+
+void Cleo::find(Command& cmd) {
+    if (cmd.argCount() == 0) {
+        findHelp(Cleo::commandHelp, "find");
+        return;
+    }
+    while (cmd.argCount() > 0) {
+        findSong(cmd.nextArg());
+    }
 }
 
 void Cleo::setMusicDir(Command& cmd) {
@@ -622,7 +648,6 @@ void Cleo::setMusicDir(Command& cmd) {
         std::println("Given directory does not exist.");
         return;
     }
-    std::println("Set music directory to {}", newMusicDir.string());
     Music::musicDir = newMusicDir;
     updateSongs();
 }
@@ -641,7 +666,44 @@ void Cleo::setPlaylistDir(Command& cmd) {
         std::println("Given directory does not exist.");
         return;
     }
-    std::println("Set playlist directory to {}", newPlaylistDir.string());
     Music::playlistDir = newPlaylistDir;
     updatePlaylists();
+}
+
+static void runScript(std::string&& script) {
+    AutoMatch match{Music::scripts, script};
+    switch (match.matchType) {
+        case Match::NoMatch:
+            std::println("Script not found.");
+            return;
+        case Match::ExactMatch:
+            script = match.exactMatch();
+            break;
+        case Match::MultipleMatch:
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            return;
+    }
+    Music::isExecutingScript = true;
+    std::ifstream scriptPath{Music::scriptDir / script};
+    std::string line{};
+    while (std::getline(scriptPath, line)) {
+        if (!line.starts_with("#")) {
+            executeCmds(parseString(line));
+        }
+    }
+    Music::isExecutingScript = false;
+}
+
+void Cleo::run(Command& cmd) {
+    if (cmd.argCount() == 0) {
+        findHelp(Cleo::commandHelp, "run");
+        return;
+    }
+    if (Music::isExecutingScript) {
+        std::println("Cannot run a script while executing another script.");
+        return;
+    }
+    while (cmd.argCount() > 0) {
+        runScript(cmd.nextArg());
+    }
 }

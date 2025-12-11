@@ -1,7 +1,11 @@
 #include "music.hpp"
+#include "command.hpp"
+#include "defaultCommands.hpp"
 #include <SFML/Audio/Music.hpp>
 #include <SFML/System/Time.hpp>
 #include <fstream>
+#include <iostream>
+#include <print>
 
 namespace fs = std::filesystem;
 fs::path getHome() { return std::getenv("HOME"); }
@@ -44,14 +48,16 @@ void writeCache() {
 
 namespace Music {
     sf::Music music{};
-    fs::path musicDir{getHome() / "music"};
+    fs::path musicDir{getHome() / "Music"};
     fs::path playlistDir{musicDir / "playlists"};
+    fs::path scriptDir{getHome() / ".config" / "cleo"};
     const std::unordered_set<std::string> supportedExtensions{
         ".mp3", ".ogg", ".flac", ".wav", ".aiff",
     };
     // Taken from the list of formats that SFML supports. Some of the more obscure ones were
     // left out
     std::vector<std::string> songs{};
+    std::vector<std::string> scripts{};
     std::vector<std::string> playlists{};
     std::vector<std::string> curPlaylist{};
     std::vector<std::string> shuffledPlaylist{};
@@ -62,9 +68,25 @@ namespace Music {
     bool inPlaylistMode{false};
     bool isShuffled{false};
     bool isPlaylistLooping{false};
+    bool isExecutingScript{false};
 } // namespace Music
 
 void updateSongs() {
+    while (!fs::exists(Music::musicDir)) {
+        std::string musicDir{};
+        std::print("Default music directory ({0}) does not exist, please specify one here or leave blank "
+                   "to create {0}: ",
+                   Music::musicDir.string());
+        std::getline(std::cin, musicDir);
+        if (musicDir.empty()) {
+            fs::create_directories(Music::musicDir);
+            std::println("{} created.", Music::musicDir.string());
+            break;
+        }
+        Command cmd{"_", musicDir};
+        // We don't need the function component, only the argument
+        Cleo::setMusicDir(cmd);
+    }
     std::string filename{};
     std::vector<std::string> newSongs{};
     sf::Music load{};
@@ -81,6 +103,20 @@ void updateSongs() {
 }
 
 void updatePlaylists() {
+    while (!fs::exists(Music::playlistDir)) {
+        std::string playlistDir{};
+        std::print("Default playlist directory ({0}) does not exist, please specify one here or leave blank "
+                   "to create {0}: ",
+                   Music::playlistDir.string());
+        std::getline(std::cin, playlistDir);
+        if (playlistDir.empty()) {
+            fs::create_directories(Music::playlistDir);
+            std::println("{} created.", Music::playlistDir.string());
+            break;
+        }
+        Command cmd{"_", playlistDir};
+        Cleo::setPlaylistDir(cmd);
+    }
     std::string playlist{};
     std::vector<std::string> newPlaylists{};
     for (const auto& dirEntry : fs::directory_iterator{Music::playlistDir}) {
@@ -91,6 +127,31 @@ void updatePlaylists() {
         newPlaylists.push_back(playlist);
     }
     Music::playlists = newPlaylists;
+}
+
+void updateScripts() {
+    static const fs::path cleoStartup{Music::scriptDir / "startup"};
+    if (!fs::exists(Music::scriptDir)) {
+        fs::create_directories(Music::scriptDir);
+        return;
+    }
+    if (!fs::exists(cleoStartup)) {
+        std::ofstream startupScript{cleoStartup};
+        startupScript << "# Any commands entered below will be executed when Cleo starts\n";
+        startupScript.close();
+    }
+    std::string script{};
+    std::vector<std::string> scripts{};
+    for (const auto& dirEntry : fs::directory_iterator{Music::scriptDir}) {
+        if (!dirEntry.is_regular_file()) {
+            continue;
+        }
+        script = dirEntry.path().filename();
+        scripts.push_back(script);
+    }
+    Music::scripts = scripts;
+    Command cmd{"_", "startup"};
+    Cleo::run(cmd);
 }
 
 const std::vector<std::string>& getPlaylist() {

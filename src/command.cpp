@@ -14,6 +14,16 @@ Command::Command(const std::vector<std::string>& components) {
         // The +1 skips mFunction being included in the command arguments
     }
 }
+
+Command::Command(std::initializer_list<std::string> components) {
+    assert(components.size() >= 1 && "Command was empty");
+    mFunction = *components.begin();
+    lower(mFunction);
+    if (components.size() > 1) {
+        mArguments = std::vector<std::string>(components.begin() + 1, components.end());
+        // The +1 skips mFunction being included in the command arguments
+    }
+}
 const std::string& Command::function() const { return mFunction; }
 const std::vector<std::string>& Command::arguments() const { return mArguments; }
 
