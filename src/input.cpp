@@ -22,9 +22,19 @@ std::vector<Command> parseString(std::string_view input) {
     std::vector<Command> commands{};
     std::vector<std::string> thisCommand{};
     std::stringstream current{};
+    bool escapeQuote{false};
     for (const auto& c : input) {
-        if (c == '\"' || c == '\'') {
-            isQuoted ^= true;
+        if (c == '\\') {
+            escapeQuote = true;
+            continue;
+        }
+        if (c == '\"') {
+            if (escapeQuote) {
+                escapeQuote = false;
+                current << c;
+            } else {
+                isQuoted ^= true;
+            }
             continue;
         } else if (isQuoted) {
             // process characters verbatim

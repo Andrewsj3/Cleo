@@ -29,6 +29,7 @@ namespace Music {
 } // namespace Music
 
 void updateSongs();
+void readCache();
 void writeCache();
 void updatePlaylists();
 void updateScripts();

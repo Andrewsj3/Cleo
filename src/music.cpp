@@ -13,11 +13,10 @@ static const fs::path cacheDir{getHome() / ".cache" / "cleo"};
 static const fs::path cachePath{cacheDir / "cache"};
 static constexpr int cacheSize{1000};
 
-static std::map<fs::path, int> readCache() {
+void readCache() {
     if (!fs::exists(cachePath)) {
         fs::create_directories(cacheDir);
         std::ofstream{cachePath}.flush();
-        return {};
     }
     std::map<fs::path, int> cache{};
     std::ifstream inp{cachePath};
@@ -28,9 +27,10 @@ static std::map<fs::path, int> readCache() {
         std::size_t pos{line.find(':')};
         path = line.substr(0, pos);
         duration = std::stoi(line.substr(pos + 1));
-        cache.insert({Music::musicDir / path, duration});
+        Music::songDurations.insert({path, duration});
+        // It might seem like we should insert the music directory here, but if the user changes it, the whole
+        // cache would get invalidated
     }
-    return cache;
 }
 
 void writeCache() {
@@ -61,7 +61,7 @@ namespace Music {
     std::vector<std::string> playlists{};
     std::vector<std::string> curPlaylist{};
     std::vector<std::string> shuffledPlaylist{};
-    std::map<fs::path, int> songDurations{readCache()};
+    std::map<fs::path, int> songDurations{};
     int repeats{};
     std::string curSong{};
     std::size_t playlistIdx{};

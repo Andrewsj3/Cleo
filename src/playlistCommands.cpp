@@ -88,9 +88,9 @@ static void parsePlaylist(const fs::path& path) {
                 return;
             }
         }
-        if (!Music::songDurations.contains(Music::musicDir / curItem)) {
+        if (!Music::songDurations.contains(curItem)) {
             if (load.openFromFile(Music::musicDir / curItem)) {
-                Music::songDurations.insert({Music::musicDir / curItem, load.getDuration().asSeconds()});
+                Music::songDurations.insert({curItem, load.getDuration().asSeconds()});
             }
         }
         if (!fs::exists(Music::musicDir / curItem)) {
@@ -100,6 +100,7 @@ static void parsePlaylist(const fs::path& path) {
         }
     }
     Music::shuffledPlaylist = Music::curPlaylist = playlist;
+    Music::isShuffled = false;
     Music::playlistIdx = 0;
 }
 
@@ -316,7 +317,8 @@ static void filterAndPrintSongs(const std::vector<std::string>& playlist,
 
 static bool isDigit(std::string_view num) { return num.find_first_not_of("0123456789") == std::string::npos; }
 
-static void findSong(const std::vector<std::string>& playlist, std::string&& song) {
+static void findSong(const std::vector<std::string>& playlist, std::string song) {
+    // since `song` can be lvalue or rvalue, we unfortunately can't use references
     if (isDigit(song)) {
         size_t index{std::stoull(song)};
         if (0 < index && index < playlist.size() + 1) {
@@ -349,13 +351,18 @@ static void findSong(const std::vector<std::string>& playlist, std::string&& son
 
 void Playlist::find(Command& cmd) {
     const std::vector<std::string>& playlist{getPlaylist()};
-    if (playlist.empty() || !Music::inPlaylistMode) {
+    if (playlist.empty()) {
         std::println("Not currently playing a playlist.");
         return;
     }
     std::string song{};
     if (cmd.argCount() == 0) {
-        song = playlist[Music::playlistIdx - 1];
+        if (Music::inPlaylistMode) {
+            song = playlist[Music::playlistIdx - 1];
+            findSong(playlist, song);
+        } else {
+            std::println("Cannot get current song because there is no playlist playing.");
+        }
     } else {
         while (cmd.argCount() > 0) {
             findSong(playlist, cmd.nextArg());

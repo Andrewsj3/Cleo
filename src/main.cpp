@@ -3,7 +3,7 @@
 #include <SFML/Audio/Music.hpp>
 #include <SFML/System.hpp>
 #include <print>
-#define CLEO_VERSION "1.0.0"
+#define CLEO_VERSION "1.1.1"
 
 int main() {
     std::println("Cleo " CLEO_VERSION ", powered by SFML.");
@@ -11,6 +11,7 @@ int main() {
     updateScripts();
     updateSongs();
     updatePlaylists();
+    readCache();
     runThreads();
     writeCache();
     return 0;
