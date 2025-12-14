@@ -29,4 +29,4 @@ Command          |Changed/<br>Removed|Reason
 * A compiler that supports C++23
 
 > [!IMPORTANT]
-> This application only works on Linux. Windows support will be added soon, but it will lack some features.
+> This application works best on Linux. It should work on Windows, but some features may be missing.

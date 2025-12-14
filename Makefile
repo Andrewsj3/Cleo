@@ -15,7 +15,8 @@ CXXSTD = -std=c++23
 CXXFLAGS = $(CXXSTD)
 CXXFLAGS += -Wall -Wextra -Wpedantic -Wformat -Weffc++ -Wconversion -Wunused-function
 DBGFLAGS = -ggdb -UNDEBUG -fsanitize=address
-RELFLAGS = -DNDEBUG -O2
+RELFLAGS = -DNDEBUG -O1
+# Change to O1 is necessary because a bug arises concerning the input thread if O2 or O3 is used
 LDFLAGS = `pkg-config --libs sfml-audio readline`
 MAKEFLAGS += --no-builtin-rules
 

@@ -16,7 +16,11 @@ void runThreads() {
     std::thread inputThreadObj{inputThread};
     std::thread backgroundThreadObj{backgroundThread};
 
+#if defined(__unix)
     statThreadObj.join();
+#else
+    statThreadObj.detach();
+#endif
     inputThreadObj.join();
     backgroundThreadObj.join();
 }

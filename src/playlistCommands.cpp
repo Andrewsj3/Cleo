@@ -237,7 +237,7 @@ void Playlist::status(Command&) {
     int thisDuration{};
     const std::vector<std::string>& playlist{getPlaylist()};
     for (std::size_t i{0}; i < playlist.size(); ++i) {
-        thisDuration = Music::songDurations.at(Music::musicDir / playlist[i]);
+        thisDuration = Music::songDurations.at(playlist[i]);
         totalTime += thisDuration;
         if (i < Music::playlistIdx - 1) {
             timeElapsed += thisDuration;
