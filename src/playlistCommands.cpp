@@ -17,22 +17,24 @@ namespace fs = std::filesystem;
 static std::random_device rd{std::random_device{}};
 static std::default_random_engine rng{std::default_random_engine{rd()}};
 const std::vector<std::string> Playlist::commandList{
-    "add", "clear", "find", "load", "loop", "next", "play", "previous", "remove", "save", "shuffle", "status",
+    "add", "clear", "delete", "find", "load", "loop", "next", "play", "previous", "remove", "save", "shuffle", "status",
 };
 const CommandMap Playlist::commands{
-    {"load", Playlist::load}, {"play", Playlist::play},     {"add", Playlist::add},
-    {"save", Playlist::save}, {"status", Playlist::status}, {"shuffle", Playlist::shuffle},
-    {"find", Playlist::find}, {"next", Playlist::next},     {"previous", Playlist::previous},
-    {"loop", Playlist::loop}, {"clear", Playlist::clear},   {"remove", Playlist::remove},
+    {"load", Playlist::load},  {"play", Playlist::play},     {"add", Playlist::add},
+    {"save", Playlist::save},  {"status", Playlist::status}, {"shuffle", Playlist::shuffle},
+    {"find", Playlist::find},  {"next", Playlist::next},     {"previous", Playlist::previous},
+    {"loop", Playlist::loop},  {"clear", Playlist::clear},   {"remove", Playlist::remove},
+    {"delete", Playlist::del},
 };
 
 const CommandDefinition Playlist::commandHelp{
     {"load", R"(Usage: playlist load <filename>
 Loads the songs in <filename> into the current playlist.
 Playlists are stored in ~/music/playlists by default.)"},
-    {"save", R"(Usage: playlist save <filename>
+    {"save", R"(Usage: playlist save [filename]
 Saves the current playlist to the file chosen. Note that it automatically adds the csv
-extension, so you don't need to specify one yourself.)"},
+extension, so you don't need to specify one yourself. If no filename is given, it defaults
+to the current playlist.)"},
     {"play", R"(Starts playing the playlist and advances the song index by 1.
 This means calling `playlist play` again skips to the next song, unless the current song
 is the last song, in which case it will loop to the beginning.)"},
@@ -53,7 +55,10 @@ If nothing is given, it defaults to the current song being played.)"},
     {"loop", "Toggles whether the playlist should loop after reaching the end."},
     {"clear", "Removes all songs from the playlist."},
     {"remove", R"(Usage: playlist remove <songs>
-Removes each song from the current playlist. To make this change permanent, use `playlist save`.)"}};
+Removes each song from the current playlist. To make this change permanent, use `playlist save`.)"},
+    {"delete", R"(Usage: playlist delete <playlists>
+For each playlist given, attempts to delete the playlist. This action cannot be undone.)"},
+};
 
 static void playSong(const fs::path& songPath) {
     if (fs::exists(songPath)) {
@@ -100,6 +105,7 @@ static void parsePlaylist(const fs::path& path) {
         }
     }
     Music::shuffledPlaylist = Music::curPlaylist = playlist;
+    Music::playlistCurName = path.stem();
     Music::isShuffled = false;
     Music::playlistIdx = 0;
 }
@@ -186,15 +192,25 @@ void Playlist::add(Command& cmd) {
 }
 
 void Playlist::save(Command& cmd) {
+    std::ofstream output;
+    if (cmd.argCount() == 0 && !Music::curPlaylist.empty()) {
+        std::string confirm{};
+        std::print("Overwrite current playlist? [Y/n] ");
+        std::getline(std::cin, confirm);
+        if (!(confirm == "n" || confirm == "N")) {
+            output.open(Music::playlistDir / (Music::playlistCurName + ".csv"));
+            output << join(Music::curPlaylist, ",") << '\n';
+            std::println("Playlist saved.");
+        }
+        return;
+    }
     if (cmd.argCount() != 1) {
         findHelp(Playlist::commandHelp, "save");
-        std::println("Expected a name for the playlist.");
         return;
     }
     std::string playlistName{cmd.nextArg()};
     fs::path destination{Music::playlistDir / (playlistName + ".csv")};
     // Don't make the user enter an extension themselves, although technically they still can
-    std::ofstream output;
     if (fs::exists(destination)) {
         std::string choice{};
         std::print("Playlist already exists, do you want to overwrite it? [y/N] ");
@@ -244,6 +260,7 @@ void Playlist::status(Command&) {
         }
     }
     timeElapsed += (int)Music::music.getPlayingOffset().asSeconds();
+    std::println("Playlist selected: {}", Music::playlistCurName);
     printPreviousNextSong();
     std::println("Currently playing {} ({}/{})", Music::curSong, Music::playlistIdx, playlist.size());
     std::println("Total length of playlist: {}", numAsTimestamp(totalTime));
@@ -267,7 +284,7 @@ void Playlist::shuffle(Command&) {
     std::println("Shuffle: {}.", Music::isShuffled ? "on" : "off");
 }
 
-std::string numAsPosition(long num) {
+static std::string numAsPosition(long num) {
     std::string numStr{std::to_string(num)};
     static const std::regex thSpecialCase{R"(^\d*1[123]$)"};
     // Account for 11th, 12th, 13th, etc.
@@ -435,5 +452,33 @@ void Playlist::remove(Command& cmd) {
     }
     while (cmd.argCount() > 0) {
         removeSong(cmd.nextArg());
+    }
+}
+
+static void deletePlaylist(std::string_view playlist) {
+    AutoMatch match{Music::playlists, playlist};
+    std::string filename{};
+    switch (match.matchType) {
+        case Match::NoMatch:
+            std::println("Playlist {} not found.", playlist);
+            return;
+        case Match::ExactMatch:
+            filename = Music::playlistDir / match.exactMatch();
+            break;
+        case Match::MultipleMatch:
+            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+            return;
+    }
+    fs::remove(filename);
+    std::println("Deleted playlist {}.", stem(match.exactMatch()));
+}
+
+void Playlist::del(Command& cmd) {
+    if (cmd.argCount() == 0) {
+        findHelp(Playlist::commandHelp, "delete");
+        return;
+    }
+    while (cmd.argCount() > 0) {
+        deletePlaylist(cmd.nextArg());
     }
 }

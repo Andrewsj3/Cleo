@@ -20,6 +20,7 @@ namespace Music {
     extern std::map<std::filesystem::path, int> songDurations;
     extern int repeats;
     extern std::string curSong;
+    extern std::string playlistCurName;
     extern std::size_t playlistIdx;
     extern bool inPlaylistMode;
     extern bool isShuffled;

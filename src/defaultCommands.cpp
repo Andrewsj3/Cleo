@@ -118,7 +118,8 @@ cannot run other scripts.)"},
 Changes the prompt that appears at the beginning of each line. This does not apply
 to the prompt used in help mode. It is highly recommended to use quotes if you want
 whitespace in your prompt. Like with the other `set-` functions, you should put this
-into ~/.config/cleo/startup to make it permanent.)"}};
+into ~/.config/cleo/startup to make it permanent.)"},
+};
 
 static constexpr int VOLUME_TOO_LOW{-1};
 static constexpr int VOLUME_TOO_HIGH{-2};
@@ -315,14 +316,10 @@ void Cleo::help(Command& cmd) {
     } else {
         search = cmd.nextArg();
     }
-    if (domain.contains(search)) {
-        findHelp(domain, search);
-        return;
-    }
     AutoMatch match{domain.keys(), search};
     switch (match.matchType) {
         case Match::NoMatch:
-            std::println("No help found for '{}'", search);
+            std::println("No help found for '{}'.", search);
             return;
         case Match::ExactMatch:
             if (match.exactMatch() == "playlist" && cmd.argCount() >= 1) {

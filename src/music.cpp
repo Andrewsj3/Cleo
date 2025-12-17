@@ -64,6 +64,7 @@ namespace Music {
     std::map<fs::path, int> songDurations{};
     int repeats{};
     std::string curSong{};
+    std::string playlistCurName{};
     std::size_t playlistIdx{};
     bool inPlaylistMode{false};
     bool isShuffled{false};
