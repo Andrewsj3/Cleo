@@ -29,6 +29,8 @@ namespace Music {
     extern std::string prompt;
 } // namespace Music
 
+bool shouldRunWizard();
+void runWizard();
 void updateSongs();
 void readCache();
 void writeCache();

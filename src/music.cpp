@@ -6,12 +6,108 @@
 #include <fstream>
 #include <iostream>
 #include <print>
+#include <wordexp.h>
 
 namespace fs = std::filesystem;
-fs::path getHome() { return std::getenv("HOME"); }
+fs::path getHome() {
+#if defined(__unix)
+    return std::getenv("HOME");
+#elif defined(WIN32)
+    return std::getenv("USERPROFILE");
+#endif
+}
 static const fs::path cacheDir{getHome() / ".cache" / "cleo"};
 static const fs::path cachePath{cacheDir / "cache"};
+static const fs::path firstTimeCheck{cacheDir / "no-wizard"};
 static constexpr int cacheSize{1000};
+
+static fs::path selectDirectory(std::string_view prompt) {
+    bool succeeded{false};
+    fs::path selectedDir{};
+    std::println("{}", prompt);
+    do {
+        std::string input{};
+        std::print("> ");
+        std::getline(std::cin, input);
+        if (input.empty()) {
+            if (std::cin.eof()) {
+                exit(1);
+            }
+            std::println("Directory cannot be empty");
+            continue;
+        }
+
+        wordexp_t p;
+        wordexp(input.c_str(), &p, 0);
+        selectedDir = p.we_wordv[p.we_offs];
+        wordfree(&p);
+        if (!fs::exists(selectedDir)) {
+            try {
+                fs::create_directories(selectedDir);
+                std::println("Directory created");
+            } catch (std::filesystem::filesystem_error) {
+                std::println("Could not create specified directory, please try another directory.");
+                continue;
+            }
+        }
+        bool canAccess{false};
+        std::ofstream test{selectedDir / "test.canwrite.whyareyoureadingthis"};
+        // Test if we have write access by creating temporary file
+        if (test.good()) {
+            canAccess = true;
+            test.close();
+            fs::remove(selectedDir / "test.canwrite.whyareyoureadingthis");
+        }
+        if (!canAccess) {
+            std::println(
+                "You do not have read and write access to this directory, please try another.");
+            continue;
+        }
+        succeeded = true;
+    } while (!succeeded);
+    return selectedDir;
+}
+
+bool shouldRunWizard() { return !fs::exists(firstTimeCheck); }
+
+void runWizard() {
+    std::ofstream path{};
+    std::ofstream configPath{Music::scriptDir / "startup"};
+    std::println("Welcome to Cleo. Would you like to go through the inital setup? If not, defaults will be "
+                 "used\n(see `help defaults` for more).");
+    std::print("[Y/n] ");
+    std::string doSetup{};
+    std::getline(std::cin, doSetup);
+    if (std::cin.eof()) {
+        exit(1);
+    }
+    if (doSetup == "n" || doSetup == "N") {
+        std::println("Using defaults.");
+        fs::create_directories(Music::musicDir);
+        fs::create_directories(Music::playlistDir);
+        path.open(firstTimeCheck);
+        path.flush();
+        path.close();
+        return;
+    }
+    Music::musicDir =
+        selectDirectory("1/3: Select a music directory. The directory will be created if it does not exist.");
+    configPath << "set-music " << Music::musicDir << '\n';
+    Music::playlistDir = selectDirectory(
+        "2/3: Select a playlist directory. The directory will be created if it does not exist.");
+    configPath << "set-playlist " << Music::playlistDir << '\n';
+    std::println("3/3: Select a prompt. Leave blank for the default (> )");
+    std::getline(std::cin, Music::prompt);
+    if (Music::prompt.empty()) {
+        Music::prompt = "> ";
+    }
+    configPath << "set-prompt \"" << Music::prompt << "\"\n";
+    std::println("Finished.");
+    configPath.close();
+    path.open(firstTimeCheck);
+    path.flush();
+    path.close();
+}
 
 void readCache() {
     if (!fs::exists(cachePath)) {
@@ -74,21 +170,6 @@ namespace Music {
 } // namespace Music
 
 void updateSongs() {
-    while (!fs::exists(Music::musicDir)) {
-        std::string musicDir{};
-        std::print("Default music directory ({0}) does not exist, please specify one here or leave blank "
-                   "to create {0}: ",
-                   Music::musicDir.string());
-        std::getline(std::cin, musicDir);
-        if (musicDir.empty()) {
-            fs::create_directories(Music::musicDir);
-            std::println("{} created.", Music::musicDir.string());
-            break;
-        }
-        Command cmd{"_", musicDir};
-        // We don't need the function component, only the argument
-        Cleo::setMusicDir(cmd);
-    }
     std::string filename{};
     std::vector<std::string> newSongs{};
     sf::Music load{};
@@ -105,24 +186,10 @@ void updateSongs() {
 }
 
 void updatePlaylists() {
-    while (!fs::exists(Music::playlistDir)) {
-        std::string playlistDir{};
-        std::print("Default playlist directory ({0}) does not exist, please specify one here or leave blank "
-                   "to create {0}: ",
-                   Music::playlistDir.string());
-        std::getline(std::cin, playlistDir);
-        if (playlistDir.empty()) {
-            fs::create_directories(Music::playlistDir);
-            std::println("{} created.", Music::playlistDir.string());
-            break;
-        }
-        Command cmd{"_", playlistDir};
-        Cleo::setPlaylistDir(cmd);
-    }
     std::string playlist{};
     std::vector<std::string> newPlaylists{};
     for (const auto& dirEntry : fs::directory_iterator{Music::playlistDir}) {
-        if (!dirEntry.is_regular_file()) {
+        if (!dirEntry.is_regular_file() || !(dirEntry.path().extension() == ".csv")) {
             continue;
         }
         playlist = dirEntry.path().filename();
@@ -132,16 +199,6 @@ void updatePlaylists() {
 }
 
 void updateScripts() {
-    static const fs::path cleoStartup{Music::scriptDir / "startup"};
-    if (!fs::exists(Music::scriptDir)) {
-        fs::create_directories(Music::scriptDir);
-        return;
-    }
-    if (!fs::exists(cleoStartup)) {
-        std::ofstream startupScript{cleoStartup};
-        startupScript << "# Any commands entered below will be executed when Cleo starts\n";
-        startupScript.close();
-    }
     std::string script{};
     std::vector<std::string> scripts{};
     for (const auto& dirEntry : fs::directory_iterator{Music::scriptDir}) {

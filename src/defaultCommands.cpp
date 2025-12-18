@@ -119,6 +119,14 @@ Changes the prompt that appears at the beginning of each line. This does not app
 to the prompt used in help mode. It is highly recommended to use quotes if you want
 whitespace in your prompt. Like with the other `set-` functions, you should put this
 into ~/.config/cleo/startup to make it permanent.)"},
+    {"defaults", R"(Cleo uses defaults for the music and playlist directories.
+For your information, these are:
+music:     ~/Music
+playlists: ~/Music/playlists
+
+These can be changed with `set-music` and `set-playlist` respectively.
+When the initial setup is run, Cleo places commands to set these defaults in ~/.config/cleo/startup.
+For more information about these files, see `run`.)"},
 };
 
 static constexpr int VOLUME_TOO_LOW{-1};
