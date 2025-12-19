@@ -10,11 +10,7 @@
 
 namespace fs = std::filesystem;
 fs::path getHome() {
-#if defined(__unix)
     return std::getenv("HOME");
-#elif defined(WIN32)
-    return std::getenv("USERPROFILE");
-#endif
 }
 static const fs::path cacheDir{getHome() / ".cache" / "cleo"};
 static const fs::path cachePath{cacheDir / "cache"};

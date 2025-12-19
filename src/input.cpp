@@ -9,10 +9,8 @@
 #include <iostream>
 #include <print>
 #include <thread>
-#if defined(__unix)
 #include <readline/history.h>
 #include <readline/readline.h>
-#endif
 
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 
@@ -99,7 +97,6 @@ void executeCmds(const std::vector<Command>& commands) {
     }
 }
 
-#if defined(__unix)
 static bool existsInHistory(HIST_ENTRY** history, const char* str) {
     if (history == NULL) {
         return false;
@@ -112,7 +109,6 @@ static bool existsInHistory(HIST_ENTRY** history, const char* str) {
     }
     return false;
 }
-#endif
 
 static bool shouldRepeat() {
     if (Music::music.isLooping()) {
@@ -155,14 +151,7 @@ void inputThread() {
         if (!Threads::readyForInput) [[unlikely]]
             continue;
         const char* prompt = Threads::helpMode ? "?> " : Music::prompt.c_str();
-#if defined(__unix)
         const char* input = readline(prompt);
-#else
-        std::string tmp{};
-        std::print("{}", prompt);
-        std::getline(std::cin, tmp);
-        const char* input = tmp.c_str();
-#endif
         if (input == NULL || std::cin.eof()) {
             if (Threads::helpMode) {
                 Threads::helpMode = false;
@@ -175,14 +164,10 @@ void inputThread() {
         Threads::readyForInput = false;
         // Prevent prompt from showing up until commands have finished executing
         Threads::userInput = input;
-#if defined(__unix)
         std::free((void*)input);
-#endif
         if (Threads::userInput.length() > 0) {
-#if defined(__unix)
             if (!existsInHistory(history_list(), Threads::userInput.c_str()))
                 add_history(Threads::userInput.c_str());
-#endif
         } else {
             Threads::readyForInput = true;
         }

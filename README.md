@@ -29,4 +29,5 @@ Command          |Changed/<br>Removed|Reason
 * A compiler that supports C++23
 
 > [!IMPORTANT]
-> This application works best on Linux. It should work on Windows, but some features may be missing.
+> This application only works on Linux.
+> Windows users should use [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)
