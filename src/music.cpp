@@ -6,12 +6,11 @@
 #include <fstream>
 #include <iostream>
 #include <print>
+#include <readline/readline.h>
 #include <wordexp.h>
 
 namespace fs = std::filesystem;
-fs::path getHome() {
-    return std::getenv("HOME");
-}
+fs::path getHome() { return std::getenv("HOME"); }
 static const fs::path cacheDir{getHome() / ".cache" / "cleo"};
 static const fs::path cachePath{cacheDir / "cache"};
 static const fs::path firstTimeCheck{cacheDir / "no-wizard"};
@@ -22,25 +21,29 @@ static fs::path selectDirectory(std::string_view prompt) {
     fs::path selectedDir{};
     std::println("{}", prompt);
     do {
-        std::string input{};
-        std::print("> ");
-        std::getline(std::cin, input);
-        if (input.empty()) {
-            if (std::cin.eof()) {
-                exit(1);
-            }
-            std::println("Directory cannot be empty");
+        const char* input = readline("> ");
+        if (input == NULL) {
+            free((void*)input);
+            exit(1);
+        } else if (strlen(input) == 0) {
+            std::println("Directory cannot be empty.");
+            free((void*)input);
             continue;
         }
 
         wordexp_t p;
-        wordexp(input.c_str(), &p, 0);
-        selectedDir = p.we_wordv[p.we_offs];
+        int status = wordexp(input, &p, WRDE_NOCMD);
+        free((void*)input);
+        if (status != 0 || p.we_wordc == 0) {
+            std::println("Invalid directory.");
+            continue;
+        }
+        selectedDir = *p.we_wordv;
         wordfree(&p);
         if (!fs::exists(selectedDir)) {
             try {
                 fs::create_directories(selectedDir);
-                std::println("Directory created");
+                std::println("Directory created.");
             } catch (std::filesystem::filesystem_error) {
                 std::println("Could not create specified directory, please try another directory.");
                 continue;
@@ -55,8 +58,7 @@ static fs::path selectDirectory(std::string_view prompt) {
             fs::remove(selectedDir / "test.canwrite.whyareyoureadingthis");
         }
         if (!canAccess) {
-            std::println(
-                "You do not have read and write access to this directory, please try another.");
+            std::println("You do not have read and write access to this directory, please try another.");
             continue;
         }
         succeeded = true;

@@ -8,9 +8,9 @@
 #include <SFML/Audio/Music.hpp>
 #include <iostream>
 #include <print>
-#include <thread>
 #include <readline/history.h>
 #include <readline/readline.h>
+#include <thread>
 
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
 
@@ -148,8 +148,11 @@ static bool shouldAdvance() {
 void inputThread() {
     using namespace std::chrono_literals;
     while (Threads::running) {
-        if (!Threads::readyForInput) [[unlikely]]
+        if (!Threads::readyForInput) {
+            std::this_thread::sleep_for(1ms);
+            // Fix bug where input thread wouldn't terminate after exit command issued
             continue;
+        }
         const char* prompt = Threads::helpMode ? "?> " : Music::prompt.c_str();
         const char* input = readline(prompt);
         if (input == NULL || std::cin.eof()) {

@@ -17,7 +17,8 @@ namespace fs = std::filesystem;
 static std::random_device rd{std::random_device{}};
 static std::default_random_engine rng{std::default_random_engine{rd()}};
 const std::vector<std::string> Playlist::commandList{
-    "add", "clear", "delete", "find", "load", "loop", "next", "play", "previous", "remove", "save", "shuffle", "status",
+    "add",  "clear",    "delete", "find", "load",    "loop",   "next",
+    "play", "previous", "remove", "save", "shuffle", "status",
 };
 const CommandMap Playlist::commands{
     {"load", Playlist::load},  {"play", Playlist::play},     {"add", Playlist::add},

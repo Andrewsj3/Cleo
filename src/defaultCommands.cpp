@@ -658,7 +658,7 @@ void Cleo::setMusicDir(Command& cmd) {
     // Expand ~ to home directory
     wordfree(&p);
     if (!fs::exists(newMusicDir)) {
-        std::println("Given directory does not exist.");
+        std::println("Music directory {} does not exist.", newMusicDir.string());
         return;
     }
     Music::musicDir = newMusicDir;
@@ -676,7 +676,7 @@ void Cleo::setPlaylistDir(Command& cmd) {
     fs::path newPlaylistDir{p.we_wordv[p.we_offs]};
     wordfree(&p);
     if (!fs::exists(newPlaylistDir)) {
-        std::println("Given directory does not exist.");
+        std::println("Playlist directory {} does not exist.", newPlaylistDir.string());
         return;
     }
     Music::playlistDir = newPlaylistDir;

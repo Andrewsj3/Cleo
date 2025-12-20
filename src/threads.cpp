@@ -13,8 +13,8 @@ namespace Threads {
 
 void runThreads() {
     std::thread statThreadObj{monitorChanges};
-    std::thread inputThreadObj{inputThread};
     std::thread backgroundThreadObj{backgroundThread};
+    std::thread inputThreadObj{inputThread};
 
     statThreadObj.join();
     inputThreadObj.join();
