@@ -324,6 +324,10 @@ void Cleo::help(Command& cmd) {
     } else {
         search = cmd.nextArg();
     }
+    if (search == "quit") {
+        Threads::helpMode = false;
+        return;
+    }
     AutoMatch match{domain.keys(), search};
     switch (match.matchType) {
         case Match::NoMatch:
