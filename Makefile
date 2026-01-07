@@ -18,6 +18,7 @@ DBGFLAGS = -ggdb -UNDEBUG -fsanitize=address
 RELFLAGS = -DNDEBUG -O2
 LDFLAGS = `pkg-config --libs sfml-audio readline`
 MAKEFLAGS += --no-builtin-rules
+ROOT = $(shell whoami)
 
 $(OBJ_DIR)/%-dbg.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/%.hpp
 	$(CXX) $(CXXFLAGS) $(DBGFLAGS) -c -o $@ $<
@@ -52,5 +53,20 @@ clean:
 format:
 	clang-format $(SOURCES) -i
 
-.PHONY: clean format
+install: $(EXE)
+ifeq ($(ROOT),root)
+	install --mode 755 --strip $< /usr/bin/$<
+else
+	@echo Insufficient permissions, please rerun as root
+endif
+
+uninstall:
+ifeq ($(ROOT),root)
+	rm --force /usr/bin/$(EXE)
+else
+	@echo Insufficient permissions, please rerun as root
+endif
+	
+
+.PHONY: clean format install uninstall
 .SUFFIXES:

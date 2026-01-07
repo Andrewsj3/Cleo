@@ -28,6 +28,10 @@ Command          |Changed/<br>Removed|Reason
 * SFML: At least v3.0.0, preferably latest version
 * A compiler that supports C++23
 
+## Installation
+* After compiling Cleo, you can do `make install` to install it system-wide.
+* Similarly, to uninstall it, do `make uninstall`.
+
 > [!IMPORTANT]
 > This application only works on Linux.
 > Windows users should use [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)
