@@ -696,20 +696,25 @@ void Cleo::setPrompt(Command& cmd) {
 }
 
 static void runScript(std::string&& script) {
-    AutoMatch match{Music::scripts, script};
-    switch (match.matchType) {
-        case Match::NoMatch:
-            std::println("Script not found.");
-            return;
-        case Match::ExactMatch:
-            script = match.exactMatch();
-            break;
-        case Match::MultipleMatch:
-            std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
-            return;
+    std::ifstream scriptPath;
+    if (!fs::exists(script)) {
+        AutoMatch match{Music::scripts, script};
+        switch (match.matchType) {
+            case Match::NoMatch:
+                std::println("Script not found.");
+                return;
+            case Match::ExactMatch:
+                script = match.exactMatch();
+                scriptPath.open(Music::scriptDir / script);
+                break;
+            case Match::MultipleMatch:
+                std::println("Multiple matches found, could be one of {}.", join(match.matches, ", "));
+                return;
+        }
+    } else {
+        scriptPath.open(script);
     }
     Music::isExecutingScript = true;
-    std::ifstream scriptPath{Music::scriptDir / script};
     std::string line{};
     while (std::getline(scriptPath, line)) {
         if (!line.starts_with("#")) {

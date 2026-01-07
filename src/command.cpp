@@ -15,6 +15,9 @@ Command::Command(const std::vector<std::string>& components) {
     }
 }
 
+Command::Command(std::string_view cmd, const std::vector<std::string>& args)
+    : mFunction{cmd}, mArguments(args) {}
+
 Command::Command(std::initializer_list<std::string> components) {
     assert(components.size() >= 1 && "Command was empty");
     mFunction = *components.begin();

@@ -6,6 +6,7 @@ class Command {
 public:
     Command(const std::vector<std::string>& components);
     Command(std::initializer_list<std::string> components);
+    Command(std::string_view cmd, const std::vector<std::string>& args);
     Command() = default;
 
     const std::string& function() const;
