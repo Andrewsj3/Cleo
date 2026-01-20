@@ -17,15 +17,15 @@ namespace fs = std::filesystem;
 static std::random_device rd{std::random_device{}};
 static std::default_random_engine rng{std::default_random_engine{rd()}};
 const std::vector<std::string> Playlist::commandList{
-    "add",  "clear",    "delete", "find", "load",    "loop",   "next",
-    "play", "previous", "remove", "save", "shuffle", "status",
+    "add",  "clear",    "delete", "find", "load",    "loop", "next",
+    "play", "previous", "remove", "save", "shuffle", "skip", "status",
 };
 const CommandMap Playlist::commands{
     {"load", Playlist::load},  {"play", Playlist::play},     {"add", Playlist::add},
     {"save", Playlist::save},  {"status", Playlist::status}, {"shuffle", Playlist::shuffle},
     {"find", Playlist::find},  {"next", Playlist::next},     {"previous", Playlist::previous},
     {"loop", Playlist::loop},  {"clear", Playlist::clear},   {"remove", Playlist::remove},
-    {"delete", Playlist::del},
+    {"delete", Playlist::del}, {"skip", Playlist::skip},
 };
 
 const CommandDefinition Playlist::commandHelp{
@@ -59,7 +59,9 @@ If nothing is given, it defaults to the current song being played.)"},
 Removes each song from the current playlist. To make this change permanent, use `playlist save`.)"},
     {"delete", R"(Usage: playlist delete <playlists>
 For each playlist given, attempts to delete the playlist. This action cannot be undone.)"},
-};
+    {"skip", R"(Usage: playlist skip <numSongs>
+Skips forward in the playlist by the desired amount, or backward if the value is negative. Restrictions on the
+`next` and `previous` commands apply here.)"}};
 
 static void playSong(const fs::path& songPath) {
     if (fs::exists(songPath)) {
@@ -194,7 +196,7 @@ void Playlist::add(Command& cmd) {
 
 void Playlist::save(Command& cmd) {
     std::ofstream output;
-    if (cmd.argCount() == 0 && !Music::curPlaylist.empty()) {
+    if (cmd.argCount() == 0 && !Music::curPlaylist.empty() && !Music::playlistCurName.empty()) {
         std::string confirm{};
         std::print("Overwrite current playlist? [Y/n] ");
         std::getline(std::cin, confirm);
@@ -393,7 +395,7 @@ void Playlist::next(Command& _) {
         std::println("Not currently playing a playlist.");
         return;
     }
-    if (Music::playlistIdx == Music::curPlaylist.size() && !Music::isPlaylistLooping) {
+    if (Music::playlistIdx >= Music::curPlaylist.size() && !Music::isPlaylistLooping) {
         // Allow user to go forward if playlist is set to loop, which will send them back to the start
         std::println("End of playlist reached.");
         return;
@@ -422,6 +424,7 @@ void Playlist::loop(Command&) {
 
 void Playlist::clear(Command&) {
     Music::curPlaylist.clear();
+    Music::playlistCurName.clear();
     Music::shuffledPlaylist.clear();
     Music::inPlaylistMode = false;
     Music::playlistIdx = 0;
@@ -481,5 +484,39 @@ void Playlist::del(Command& cmd) {
     }
     while (cmd.argCount() > 0) {
         deletePlaylist(cmd.nextArg());
+    }
+}
+
+void Playlist::skip(Command& cmd) {
+    if (cmd.argCount() == 0) {
+        findHelp(Playlist::commandHelp, "skip");
+        return;
+    }
+    std::string arg{cmd.nextArg()};
+    int numSongsToSkip{};
+    try {
+        numSongsToSkip = std::stoi(arg);
+        if (numSongsToSkip == 0) {
+            return;
+        }
+        int newIdx{(int)Music::playlistIdx + numSongsToSkip - 1}; // need int because this might be negative
+        if (newIdx >= (int)Music::curPlaylist.size()) {
+            if (!Music::isPlaylistLooping) {
+                std::println("Cannot go beyond end of playlist when not looping.");
+                return;
+            } else {
+                newIdx %= Music::curPlaylist.size();
+            }
+        }
+        if (newIdx < 0) {
+            std::println("Cannot go that far back.");
+        } else {
+            Music::playlistIdx = (size_t)newIdx;
+            Command _;
+            play(_);
+        }
+    } catch (const std::exception& e) {
+        std::println("Number of songs to skip must be a number.");
+        return;
     }
 }
