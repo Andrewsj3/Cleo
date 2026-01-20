@@ -114,19 +114,10 @@ static bool shouldRepeat() {
     if (Music::music.isLooping()) {
         return false;
     }
-    int offsetMillis{Music::music.getPlayingOffset().asMilliseconds()};
-    int durationMillis{Music::music.getDuration().asMilliseconds()};
     if (Music::music.getStatus() != sf::Music::Status::Playing) {
-        return false;
-    }
-    if (durationMillis - offsetMillis <= 20) {
-        // Here we determine if the song is about to end and if we should repeat.
-        // Due to the rate at which this function gets called, a value lower than 20 may fail
-        // sometimes and the song may not repeat.
         if (Music::repeats > 0) {
             return true;
         }
-        Music::curSong = "";
     }
     return false;
 }
