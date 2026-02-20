@@ -58,7 +58,7 @@ You can also type the first part of the song and Cleo will try to autocomplete i
     {"exit", "Exits Cleo."},
     {"volume", R"(Usage: volume [newVolume]
 With no arguments, shows the current volume. Otherwise, sets the new volume provided
-it is between 0 and 100.)"},
+it is between 0 and 100. A leading '+' or '-' increments/decrements the volume instead.)"},
     {"help", "Shows how commands work and how you can use Cleo."},
     {"commands", join(Cleo::commandList, "\n")},
     {"time", "Shows the current song's elapsed time and remaining time."},
@@ -229,10 +229,14 @@ static void getVolume() {
     std::println("Volume: {:.1f}%", curVolume);
 }
 
-static void setVolume(const std::string& volume) {
+static void setVolume(const std::string& volume, bool additive = false) {
     float newVolume{};
     try {
         newVolume = std::stof(volume);
+        if (additive) {
+            float curVolume = Music::music.getVolume();
+            newVolume += curVolume;
+        }
         if (newVolume < 0) {
             throw VOLUME_TOO_LOW;
         } else if (newVolume > 100) {
@@ -259,7 +263,12 @@ void Cleo::volume(Command& cmd) {
     } else if (cmd.argCount() != 1) {
         findHelp(Cleo::commandHelp, "volume");
     } else {
-        setVolume(cmd.nextArg());
+        std::string volume{cmd.nextArg()};
+        if (volume[0] == '+' || volume[0] == '-') {
+            setVolume(volume, true);
+        } else {
+            setVolume(volume);
+        }
     }
 }
 

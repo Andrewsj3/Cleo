@@ -6,7 +6,7 @@
 #include <SFML/System.hpp>
 #include <cstring>
 #include <print>
-#define CLEO_VERSION "1.7.1"
+#define CLEO_VERSION "1.8.0"
 
 void printUsage() {
     std::println("Usage: cleo [SCRIPTS]");
