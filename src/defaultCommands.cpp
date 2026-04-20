@@ -10,6 +10,7 @@
 #include <cmath>
 #include <fstream>
 #include <print>
+#include <readline/tilde.h>
 #include <regex>
 #include <wordexp.h>
 using CommandDefinition = std::flat_map<std::string, std::string>;
@@ -664,14 +665,12 @@ void Cleo::setMusicDir(Command& cmd) {
         std::println("Music directory: {}", Music::musicDir.string());
         return;
     }
-    std::string tmpDir{cmd.nextArg()};
-    wordexp_t p;
-    wordexp(tmpDir.c_str(), &p, 0);
-    fs::path newMusicDir{p.we_wordv[p.we_offs]};
-    // Expand ~ to home directory
-    wordfree(&p);
+    fs::path newMusicDir{tilde_expand(cmd.nextArg().data())};
     if (!fs::exists(newMusicDir)) {
         std::println("Music directory {} does not exist.", newMusicDir.string());
+        return;
+    } else if (!fs::is_directory(newMusicDir)) {
+        std::println("Given path is not a directory.");
         return;
     }
     Music::musicDir = newMusicDir;
@@ -683,15 +682,15 @@ void Cleo::setPlaylistDir(Command& cmd) {
         std::println("Playlist directory: {}", Music::playlistDir.string());
         return;
     }
-    std::string tmpDir{cmd.nextArg()};
-    wordexp_t p;
-    wordexp(tmpDir.c_str(), &p, 0);
-    fs::path newPlaylistDir{p.we_wordv[p.we_offs]};
-    wordfree(&p);
+    fs::path newPlaylistDir{tilde_expand(cmd.nextArg().data())};
     if (!fs::exists(newPlaylistDir)) {
         std::println("Playlist directory {} does not exist.", newPlaylistDir.string());
         return;
+    } else if (!fs::is_directory(newPlaylistDir)) {
+        std::println("Given path is not a directory.");
+        return;
     }
+
     Music::playlistDir = newPlaylistDir;
     updatePlaylists();
 }

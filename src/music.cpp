@@ -16,6 +16,37 @@ static const fs::path cachePath{cacheDir / "cache"};
 static const fs::path firstTimeCheck{cacheDir / "no-wizard"};
 static constexpr int cacheSize{1000};
 
+bool isValidDirectory(const char* path) {
+    fs::path newPath{tilde_expand(path)};
+    bool checkParent{false};
+    if (newPath.empty()) {
+        return false;
+    }
+    newPath = std::format(".{}", fs::path::preferred_separator) / newPath;
+    // for paths like "foo", interpret as "./foo"
+    newPath /= "";                   // ensure there is always trailing slash to normalize paths
+    newPath = newPath.parent_path(); // get rid of trailing slash
+    fs::path parentPath{newPath.parent_path()};
+    if (!fs::exists(newPath)) {
+        checkParent = true;
+        // keep going up in directories until we find an existing path
+        while (!fs::exists(parentPath)) {
+            parentPath = parentPath.parent_path();
+        }
+    }
+    // if this isn't an existing directory, we need to check if we
+    // have permission to create directory in the parent directory
+    if (fs::is_regular_file(newPath)) {
+        // don't overwrite regular file
+        return false;
+    }
+    if (checkParent) {
+        return access(parentPath.c_str(), R_OK | W_OK) == 0;
+    } else {
+        return access(newPath.c_str(), R_OK | W_OK) == 0;
+    }
+}
+
 static fs::path selectDirectory(std::string_view prompt) {
     bool succeeded{false};
     fs::path selectedDir{};
@@ -30,35 +61,10 @@ static fs::path selectDirectory(std::string_view prompt) {
             free((void*)input);
             continue;
         }
-
-        wordexp_t p;
-        int status = wordexp(input, &p, WRDE_NOCMD);
-        free((void*)input);
-        if (status != 0 || p.we_wordc == 0) {
-            std::println("Invalid directory.");
-            continue;
-        }
-        selectedDir = *p.we_wordv;
-        wordfree(&p);
-        if (!fs::exists(selectedDir)) {
-            try {
-                fs::create_directories(selectedDir);
-                std::println("Directory created.");
-            } catch (std::filesystem::filesystem_error) {
-                std::println("Could not create specified directory, please try another directory.");
-                continue;
-            }
-        }
-        bool canAccess{false};
-        std::ofstream test{selectedDir / "test.canwrite.whyareyoureadingthis"};
-        // Test if we have write access by creating temporary file
-        if (test.good()) {
-            canAccess = true;
-            test.close();
-            fs::remove(selectedDir / "test.canwrite.whyareyoureadingthis");
-        }
-        if (!canAccess) {
-            std::println("You do not have read and write access to this directory, please try another.");
+        selectedDir = tilde_expand(input);
+        if (!isValidDirectory(selectedDir.c_str())) {
+            std::println("Selected directory is invalid, please try another.");
+            free((void*)input);
             continue;
         }
         succeeded = true;
@@ -66,11 +72,10 @@ static fs::path selectDirectory(std::string_view prompt) {
     return selectedDir;
 }
 
-bool shouldRunWizard() { return !fs::exists(firstTimeCheck); }
+bool shouldRunWizard(int wizard_flag) { return !fs::exists(firstTimeCheck) && wizard_flag == 0; }
 
 void runWizard() {
     std::ofstream path{};
-    std::ofstream configPath{Music::scriptDir / "startup"};
     std::println("Welcome to Cleo. Would you like to go through the inital setup? If not, defaults will be "
                  "used\n(see `help defaults` for more).");
     std::print("[Y/n] ");
@@ -79,6 +84,7 @@ void runWizard() {
     if (std::cin.eof()) {
         exit(1);
     }
+    std::ofstream configPath{Music::scriptDir / "startup"};
     if (doSetup == "n" || doSetup == "N") {
         std::println("Using defaults.");
         fs::create_directories(Music::musicDir);

@@ -29,11 +29,12 @@ namespace Music {
     extern std::string prompt;
 } // namespace Music
 
-bool shouldRunWizard();
+bool shouldRunWizard(int wizard_flag);
 void runWizard();
 void updateSongs();
 void readCache();
 void writeCache();
 void updatePlaylists();
 void updateScripts();
+bool isValidDirectory(const char* path);
 const std::vector<std::string>& getPlaylist();
