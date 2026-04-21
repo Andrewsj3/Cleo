@@ -10,11 +10,13 @@
 #include <cmath>
 #include <fstream>
 #include <print>
+#include <random>
 #include <readline/tilde.h>
 #include <regex>
 #include <wordexp.h>
 using CommandDefinition = std::flat_map<std::string, std::string>;
 using CommandMap = std::flat_map<std::string, std::function<void(Command&)>>;
+
 // Note this definition means each command has the same signature, even though some commands
 // don't need arguments
 
@@ -42,11 +44,12 @@ const CommandMap Cleo::commands{
     {"set-playlist", Cleo::setPlaylistDir},
     {"set-prompt", Cleo::setPrompt},
     {"run", Cleo::run},
+    {"random", Cleo::random},
 };
 const std::vector<std::string> Cleo::commandList{
-    "delete", "exit",      "find",         "forward",    "help",   "list",   "loop",
-    "pause",  "play",      "playlist",     "rename",     "repeat", "rewind", "run",
-    "seek",   "set-music", "set-playlist", "set-prompt", "stop",   "time",   "volume",
+    "delete",    "exit",         "find",       "forward", "help",   "list",   "loop", "pause",
+    "play",      "playlist",     "random",     "rename",  "repeat", "rewind", "run",  "seek",
+    "set-music", "set-playlist", "set-prompt", "stop",    "time",   "volume",
 };
 const CommandDefinition Cleo::commandHelp{
     {"play",
@@ -128,6 +131,8 @@ playlists: ~/Music/playlists
 These can be changed with `set-music` and `set-playlist` respectively.
 When the initial setup is run, Cleo places commands to set these defaults in ~/.config/cleo/startup.
 For more information about these files, see `run`.)"},
+    {"random", R"(Usage: random [prefix]
+If a prefix is given, plays a random song with that prefix, otherwise selects a song from your library.)"},
 };
 
 static constexpr int VOLUME_TOO_LOW{-1};
@@ -744,4 +749,30 @@ void Cleo::run(Command& cmd) {
     while (cmd.argCount() > 0) {
         runScript(cmd.nextArg());
     }
+}
+
+void Cleo::random(Command& cmd) {
+    static std::random_device random_device{};
+    static std::mt19937 engine{random_device()};
+    std::string random_song{};
+    if (cmd.argCount() == 0) {
+        std::uniform_int_distribution<size_t> dist{0, Music::songs.size() - 1};
+        random_song = Music::songs[dist(engine)];
+    } else {
+        std::string prefix{cmd.nextArg()};
+        std::vector<std::string> matchingSongs{};
+        for (const auto& song : Music::songs) {
+            if (song.starts_with(prefix)) {
+                matchingSongs.push_back(song);
+            }
+        }
+        if (matchingSongs.size() == 0) {
+            std::println("No songs found that begin with `{}`", prefix);
+            return;
+        }
+        std::uniform_int_distribution<size_t> dist{0, matchingSongs.size() - 1};
+        random_song = matchingSongs[dist(engine)];
+    }
+    Command song{"", random_song};
+    Cleo::play(song);
 }

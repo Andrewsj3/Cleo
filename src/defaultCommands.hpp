@@ -33,6 +33,7 @@ namespace Cleo {
     void setPlaylistDir(Command&);
     void setPrompt(Command&);
     void run(Command&);
+    void random(Command&);
     const extern std::flat_map<std::string, std::function<void(Command&)>> commands;
     const extern std::flat_map<std::string, std::string> commandHelp;
     const extern std::vector<std::string> commandList;

@@ -7,7 +7,7 @@
 #include <getopt.h>
 #include <print>
 #include <readline/tilde.h>
-#define CLEO_VERSION "1.9.0"
+#define CLEO_VERSION "1.10.0"
 
 namespace fs = std::filesystem;
 
